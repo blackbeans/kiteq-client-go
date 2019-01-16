@@ -34,10 +34,11 @@ func main() {
 	lis := &listener.DefaultListener{}
 	go lis.Monitor()
 
-	kite := client.NewKiteQClientWithWarmup(*zkhost, "s-mts-test", "123456", *warmingUp, lis)
+	kite := client.NewKiteQClientWithWarmup(*zkhost, "s-mts-test", "123456", *warmingUp)
 	kite.SetBindings([]*registry.Binding{
 		registry.Bind_Direct("s-mts-test", "profile", "pay-succ", 8000, false),
 	})
+	kite.SetListener(lis)
 	kite.Start()
 
 	var s = make(chan os.Signal, 1)

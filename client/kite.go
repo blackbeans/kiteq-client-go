@@ -24,13 +24,14 @@ const (
 //本地事务的方法
 type DoTranscation func(message *protocol.QMessage) (bool, error)
 
-type KiteClientManager struct {
+type kite struct {
 	ga             *turbo.GroupAuth
 	registryUri    string
 	topics         []string
 	binds          []*registry.Binding //订阅的关系
 	clientManager  *turbo.ClientManager
-	kiteClients    map[string] /*topic*/ []*kiteClient //topic对应的kiteclient
+	listener       IListener
+	kiteClients    map[string] /*topic*/ []*kiteIO //topic对应的kiteclient
 	registryCenter *registry.RegistryCenter
 	pipeline       *turbo.DefaultPipeline
 	lock           sync.RWMutex
@@ -38,7 +39,7 @@ type KiteClientManager struct {
 	flowstat       *stat.FlowStat
 }
 
-func NewKiteClientManager(registryUri, groupId, secretKey string, warmingupSec int, listen IListener) *KiteClientManager {
+func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
 
 	flowstat := stat.NewFlowStat()
 	config := turbo.NewTConfig(
@@ -47,37 +48,21 @@ func NewKiteClientManager(registryUri, groupId, secretKey string, warmingupSec i
 		16*1024, 10000, 10000,
 		10*time.Second, 160000)
 
-	//重连管理器
-	reconnManager := turbo.NewReconnectManager(true, 30*time.Second,
-		100, handshake)
-
-	//构造pipeline的结构
-	pipeline := turbo.NewDefaultPipeline()
-	clientm := turbo.NewClientManager(reconnManager)
-	pipeline.RegisteHandler("kiteclient-packet", NewPacketHandler("kiteclient-packet"))
-	pipeline.RegisteHandler("kiteclient-heartbeat", NewHeartbeatHandler("kiteclient-heartbeat", 10*time.Second, 5*time.Second, clientm))
-	pipeline.RegisteHandler("kiteclient-accept", NewAcceptHandler("kiteclient-accept", listen))
-	pipeline.RegisteHandler("kiteclient-remoting", turbo.NewRemotingHandler("kiteclient-remoting", clientm))
-
 	registryCenter := registry.NewRegistryCenter(registryUri)
 	ga := turbo.NewGroupAuth(groupId, secretKey)
 	ga.WarmingupSec = warmingupSec
-	manager := &KiteClientManager{
+	manager := &kite{
 		ga:             ga,
-		kiteClients:    make(map[string][]*kiteClient, 10),
+		kiteClients:    make(map[string][]*kiteIO, 10),
 		topics:         make([]string, 0, 10),
-		pipeline:       pipeline,
-		clientManager:  clientm,
 		config:         config,
 		flowstat:       flowstat,
 		registryUri:    registryUri,
 		registryCenter: registryCenter}
-	//开启流量统计
-	manager.remointflow()
 	return manager
 }
 
-func (self *KiteClientManager) remointflow() {
+func (self *kite) remointflow() {
 	go func() {
 		t := time.NewTicker(1 * time.Second)
 		for {
@@ -89,38 +74,30 @@ func (self *KiteClientManager) remointflow() {
 	}()
 }
 
-//握手包
-func handshake(ga *turbo.GroupAuth, remoteClient *turbo.TClient) (bool, error) {
-
-	for i := 0; i < 3; i++ {
-		p := protocol.MarshalConnMeta(ga.GroupId, ga.SecretKey, int32(ga.WarmingupSec))
-		rpacket := turbo.NewPacket(protocol.CMD_CONN_META, p)
-		resp, err := remoteClient.WriteAndGet(*rpacket, 5*time.Second)
-		if nil != err {
-			//两秒后重试
-			time.Sleep(2 * time.Second)
-			log.WarnLog("kite_client", "kiteClient|handShake|FAIL|%s|%s\n", ga.GroupId, err)
-		} else {
-			authAck, ok := resp.(*protocol.ConnAuthAck)
-			if !ok {
-				return false, errors.New("Unmatches Handshake Ack Type! ")
-			} else {
-				if authAck.GetStatus() {
-					log.InfoLog("kite_client", "kiteClient|handShake|SUCC|%s|%s\n", ga.GroupId, authAck.GetFeedback())
-					return true, nil
-				} else {
-					log.WarnLog("kite_client", "kiteClient|handShake|FAIL|%s|%s\n", ga.GroupId, authAck.GetFeedback())
-					return false, errors.New("Auth FAIL![" + authAck.GetFeedback() + "]")
-				}
-			}
-		}
-	}
-
-	return false, errors.New("handshake fail! [" + remoteClient.RemoteAddr() + "]")
+//设置listner
+func (self *kite) SetListener(listener IListener) {
+	self.listener = listener
 }
 
 //启动
-func (self *KiteClientManager) Start() {
+func (self *kite) Start() {
+
+	//没有listenr的直接启动报错
+	if nil == self.listener {
+		panic("KiteClient Listener Not Set !")
+	}
+
+	//重连管理器
+	reconnManager := turbo.NewReconnectManager(true, 30*time.Second,
+		100, handshake)
+
+	//构造pipeline的结构
+	pipeline := turbo.NewDefaultPipeline()
+	self.clientManager = turbo.NewClientManager(reconnManager)
+	pipeline.RegisteHandler("kiteclient-packet", NewPacketHandler("kiteclient-packet"))
+	pipeline.RegisteHandler("kiteclient-heartbeat", NewHeartbeatHandler("kiteclient-heartbeat", 10*time.Second, 5*time.Second, self.clientManager))
+	pipeline.RegisteHandler("kiteclient-accept", NewAcceptHandler("kiteclient-accept", self.listener))
+	pipeline.RegisteHandler("kiteclient-remoting", turbo.NewRemotingHandler("kiteclient-remoting", self.clientManager))
 
 	//注册kiteqserver的变更
 	self.registryCenter.RegisteWatcher(PATH_KITEQ_SERVER, self)
@@ -128,9 +105,9 @@ func (self *KiteClientManager) Start() {
 	//推送本机到
 	err := self.registryCenter.PublishTopics(self.topics, self.ga.GroupId, hostname)
 	if nil != err {
-		log.Crashf("KiteClientManager|PublishTopics|FAIL|%s|%s\n", err, self.topics)
+		log.Crashf("kite|PublishTopics|FAIL|%s|%s\n", err, self.topics)
 	} else {
-		log.InfoLog("kite_client", "KiteClientManager|PublishTopics|SUCC|%s\n", self.topics)
+		log.InfoLog("kite_client", "kite|PublishTopics|SUCC|%s\n", self.topics)
 	}
 
 outter:
@@ -147,25 +124,27 @@ outter:
 
 		hosts, err := self.registryCenter.GetQServerAndWatch(topic)
 		if nil != err {
-			log.Crashf("KiteClientManager|GetQServerAndWatch|FAIL|%s|%s\n", err, topic)
+			log.Crashf("kite|GetQServerAndWatch|FAIL|%s|%s\n", err, topic)
 		} else {
-			log.InfoLog("kite_client", "KiteClientManager|GetQServerAndWatch|SUCC|%s|%s\n", topic, hosts)
+			log.InfoLog("kite_client", "kite|GetQServerAndWatch|SUCC|%s|%s\n", topic, hosts)
 		}
 		self.onQServerChanged(topic, hosts)
 	}
 
 	if len(self.kiteClients) <= 0 {
-		log.Crashf("KiteClientManager|Start|NO VALID KITESERVER|%s\n", self.topics)
+		log.Crashf("kite|Start|NO VALID KITESERVER|%s\n", self.topics)
 	}
 
 	if len(self.binds) > 0 {
 		//订阅关系推送，并拉取QServer
 		err = self.registryCenter.PublishBindings(self.ga.GroupId, self.binds)
 		if nil != err {
-			log.Crashf("KiteClientManager|PublishBindings|FAIL|%s|%s\n", err, self.binds)
+			log.Crashf("kite|PublishBindings|FAIL|%s|%s\n", err, self.binds)
 		}
 	}
 
+	//开启流量统计
+	self.remointflow()
 }
 
 //创建物理连接
@@ -173,23 +152,53 @@ func dial(hostport string) (*net.TCPConn, error) {
 	//连接
 	remoteAddr, err_r := net.ResolveTCPAddr("tcp4", hostport)
 	if nil != err_r {
-		log.ErrorLog("kite_client", "KiteClientManager|RECONNECT|RESOLVE ADDR |FAIL|remote:%s\n", err_r)
+		log.ErrorLog("kite_client", "kite|RECONNECT|RESOLVE ADDR |FAIL|remote:%s\n", err_r)
 		return nil, err_r
 	}
 	conn, err := net.DialTCP("tcp4", nil, remoteAddr)
 	if nil != err {
-		log.ErrorLog("kite_client", "KiteClientManager|RECONNECT|%s|FAIL|%s\n", hostport, err)
+		log.ErrorLog("kite_client", "kite|RECONNECT|%s|FAIL|%s\n", hostport, err)
 		return nil, err
 	}
 
 	return conn, nil
 }
 
-func (self *KiteClientManager) SetPublishTopics(topics []string) {
+//握手包
+func handshake(ga *turbo.GroupAuth, remoteClient *turbo.TClient) (bool, error) {
+
+	for i := 0; i < 3; i++ {
+		p := protocol.MarshalConnMeta(ga.GroupId, ga.SecretKey, int32(ga.WarmingupSec))
+		rpacket := turbo.NewPacket(protocol.CMD_CONN_META, p)
+		resp, err := remoteClient.WriteAndGet(*rpacket, 5*time.Second)
+		if nil != err {
+			//两秒后重试
+			time.Sleep(2 * time.Second)
+			log.WarnLog("kite_client", "kiteIO|handShake|FAIL|%s|%s\n", ga.GroupId, err)
+		} else {
+			authAck, ok := resp.(*protocol.ConnAuthAck)
+			if !ok {
+				return false, errors.New("Unmatches Handshake Ack Type! ")
+			} else {
+				if authAck.GetStatus() {
+					log.InfoLog("kite_client", "kiteIO|handShake|SUCC|%s|%s\n", ga.GroupId, authAck.GetFeedback())
+					return true, nil
+				} else {
+					log.WarnLog("kite_client", "kiteIO|handShake|FAIL|%s|%s\n", ga.GroupId, authAck.GetFeedback())
+					return false, errors.New("Auth FAIL![" + authAck.GetFeedback() + "]")
+				}
+			}
+		}
+	}
+
+	return false, errors.New("handshake fail! [" + remoteClient.RemoteAddr() + "]")
+}
+
+func (self *kite) SetPublishTopics(topics []string) {
 	self.topics = append(self.topics, topics...)
 }
 
-func (self *KiteClientManager) SetBindings(bindings []*registry.Binding) {
+func (self *kite) SetBindings(bindings []*registry.Binding) {
 	for _, b := range bindings {
 		b.GroupId = self.ga.GroupId
 	}
@@ -198,7 +207,7 @@ func (self *KiteClientManager) SetBindings(bindings []*registry.Binding) {
 }
 
 //发送事务消息
-func (self *KiteClientManager) SendTxMessage(msg *protocol.QMessage, doTranscation DoTranscation) (err error) {
+func (self *kite) SendTxMessage(msg *protocol.QMessage, doTranscation DoTranscation) (err error) {
 
 	msg.GetHeader().GroupId = protocol.MarshalPbString(self.ga.GroupId)
 
@@ -234,7 +243,7 @@ func (self *KiteClientManager) SendTxMessage(msg *protocol.QMessage, doTranscati
 }
 
 //发送消息
-func (self *KiteClientManager) SendMessage(msg *protocol.QMessage) error {
+func (self *kite) SendMessage(msg *protocol.QMessage) error {
 	//fix header groupId
 	msg.GetHeader().GroupId = protocol.MarshalPbString(self.ga.GroupId)
 	//select client
@@ -246,14 +255,14 @@ func (self *KiteClientManager) SendMessage(msg *protocol.QMessage) error {
 }
 
 //kiteclient路由选择策略
-func (self *KiteClientManager) selectKiteClient(header *protocol.Header) (*kiteClient, error) {
+func (self *kite) selectKiteClient(header *protocol.Header) (*kiteIO, error) {
 
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 
 	clients, ok := self.kiteClients[header.GetTopic()]
 	if !ok || len(clients) <= 0 {
-		// 	log.WarnLog("kite_client","KiteClientManager|selectKiteClient|FAIL|NO Remote Client|%s\n", header.GetTopic())
+		// 	log.WarnLog("kite_client","kite|selectKiteClient|FAIL|NO Remote Client|%s\n", header.GetTopic())
 		return nil, errors.New("NO KITE CLIENT ! [" + header.GetTopic() + "]")
 	}
 	for i := 0; i < 3; i++ {
@@ -265,6 +274,6 @@ func (self *KiteClientManager) selectKiteClient(header *protocol.Header) (*kiteC
 	return nil, errors.New("NO Alive KITE CLIENT ! [" + header.GetTopic() + "]")
 }
 
-func (self *KiteClientManager) Destory() {
+func (self *kite) Destory() {
 	self.registryCenter.Close()
 }

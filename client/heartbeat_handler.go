@@ -1,4 +1,5 @@
 package client
+
 import (
 	"github.com/blackbeans/kiteq-common/protocol"
 	log "github.com/blackbeans/log4go"
@@ -16,10 +17,10 @@ type HeartbeatHandler struct {
 
 //------创建heartbeat
 func NewHeartbeatHandler(name string, heartbeatPeriod time.Duration,
-	heartbeatTimeout time.Duration, clientMangager *turbo.ClientManager) *HeartbeatHandler {
+	heartbeatTimeout time.Duration, clientManager *turbo.ClientManager) *HeartbeatHandler {
 	phandler := &HeartbeatHandler{}
 	phandler.BaseForwardHandler = turbo.NewBaseForwardHandler(name, phandler)
-	phandler.clientMangager = clientMangager
+	phandler.clientMangager = clientManager
 	phandler.heartbeatPeriod = heartbeatPeriod
 	phandler.heartbeatTimeout = heartbeatTimeout
 	go phandler.keepAlive()

@@ -6,51 +6,56 @@ import (
 )
 
 type KiteQClient struct {
-	kclientManager *KiteClientManager
+	k *kite
 }
 
 func (self *KiteQClient) Start() {
-	self.kclientManager.Start()
+	self.k.Start()
 }
 
-func NewKiteQClient(zkAddr, groupId, secretKey string, listener IListener) *KiteQClient {
-	return NewKiteQClientWithWarmup(zkAddr, groupId, secretKey, 0, listener)
+//设置listner
+func (self *KiteQClient) SetListener(listener IListener) {
+	self.k.SetListener(listener)
 }
 
-func NewKiteQClientWithWarmup(zkAddr, groupId, secretKey string, warmingupSec int, listener IListener) *KiteQClient {
+func NewKiteQClient(zkAddr, groupId, secretKey string) *KiteQClient {
+	return NewKiteQClientWithWarmup(zkAddr, groupId, secretKey, 0)
+}
+
+func NewKiteQClientWithWarmup(zkAddr, groupId, secretKey string, warmingupSec int) *KiteQClient {
 	return &KiteQClient{
-		kclientManager: NewKiteClientManager(zkAddr, groupId, secretKey, warmingupSec, listener)}
+		k: newKite(zkAddr, groupId, secretKey, warmingupSec)}
 }
 
 func (self *KiteQClient) SetTopics(topics []string) {
-	self.kclientManager.SetPublishTopics(topics)
+	self.k.SetPublishTopics(topics)
 }
 
 func (self *KiteQClient) SetBindings(bindings []*registry.Binding) {
-	self.kclientManager.SetBindings(bindings)
+	self.k.SetBindings(bindings)
 
 }
 
 func (self *KiteQClient) SendTxStringMessage(msg *protocol.StringMessage, transcation DoTranscation) error {
 	message := protocol.NewQMessage(msg)
-	return self.kclientManager.SendTxMessage(message, transcation)
+	return self.k.SendTxMessage(message, transcation)
 }
 
 func (self *KiteQClient) SendTxBytesMessage(msg *protocol.BytesMessage, transcation DoTranscation) error {
 	message := protocol.NewQMessage(msg)
-	return self.kclientManager.SendTxMessage(message, transcation)
+	return self.k.SendTxMessage(message, transcation)
 }
 
 func (self *KiteQClient) SendStringMessage(msg *protocol.StringMessage) error {
 	message := protocol.NewQMessage(msg)
-	return self.kclientManager.SendMessage(message)
+	return self.k.SendMessage(message)
 }
 
 func (self *KiteQClient) SendBytesMessage(msg *protocol.BytesMessage) error {
 	message := protocol.NewQMessage(msg)
-	return self.kclientManager.SendMessage(message)
+	return self.k.SendMessage(message)
 }
 
 func (self *KiteQClient) Destory() {
-	self.kclientManager.Destory()
+	self.k.Destory()
 }

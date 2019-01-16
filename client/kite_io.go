@@ -12,20 +12,20 @@ import (
 	"github.com/blackbeans/turbo"
 )
 
-type kiteClient struct {
+type kiteIO struct {
 	client *turbo.TClient
 }
 
-func newKitClient(c *turbo.TClient) *kiteClient {
+func newKiteIO(c *turbo.TClient) *kiteIO {
 
-	client := &kiteClient{
+	client := &kiteIO{
 		client: c}
 
 	return client
 }
 
 //发送事务的确认,无需等待服务器反馈
-func (self *kiteClient) sendTxAck(message *protocol.QMessage,
+func (self *kiteIO) sendTxAck(message *protocol.QMessage,
 	txstatus protocol.TxStatus, feedback string) error {
 	//写入时间
 	if message.GetHeader().GetCreateTime() <= 0 {
@@ -35,7 +35,7 @@ func (self *kiteClient) sendTxAck(message *protocol.QMessage,
 	return self.innerSendMessage(protocol.CMD_TX_ACK, txpacket, 0)
 }
 
-func (self *kiteClient) sendMessage(message *protocol.QMessage) error {
+func (self *kiteIO) sendMessage(message *protocol.QMessage) error {
 	//写入时间
 	if message.GetHeader().GetCreateTime() <= 0 {
 		message.GetHeader().CreateTime = protocol.MarshalInt64(time.Now().Unix())
@@ -75,7 +75,7 @@ func (self *kiteClient) sendMessage(message *protocol.QMessage) error {
 
 var TIMEOUT_ERROR = errors.New("WAIT RESPONSE TIMEOUT ")
 
-func (self *kiteClient) innerSendMessage(cmdType uint8, p []byte, timeout time.Duration) error {
+func (self *kiteIO) innerSendMessage(cmdType uint8, p []byte, timeout time.Duration) error {
 
 	msgpacket := turbo.NewPacket(cmdType, p)
 
@@ -90,9 +90,9 @@ func (self *kiteClient) innerSendMessage(cmdType uint8, p []byte, timeout time.D
 		} else {
 			storeAck, ok := resp.(*protocol.MessageStoreAck)
 			if !ok || !storeAck.GetStatus() {
-				return errors.New(fmt.Sprintf("kiteClient|SendMessage|FAIL|%s\n", resp))
+				return errors.New(fmt.Sprintf("kiteIO|SendMessage|FAIL|%s\n", resp))
 			} else {
-				//log.DebugLog("kite_client","kiteClient|SendMessage|SUCC|%s|%s\n", storeAck.GetMessageId(), storeAck.GetFeedback())
+				//log.DebugLog("kite_client","kiteIO|SendMessage|SUCC|%s|%s\n", storeAck.GetMessageId(), storeAck.GetFeedback())
 				return nil
 			}
 		}

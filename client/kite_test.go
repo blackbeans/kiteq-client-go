@@ -66,16 +66,14 @@ func (self *MockTestListener) OnMessageCheck(tx *protocol.TxResponse) error {
 
 var rc = make(chan string, 1)
 var txc = make(chan string, 1)
-var manager *KiteClientManager
+var manager *kite
 
 func init() {
 
-	l := &MockTestListener{rc: rc, txc: txc}
-
 	// 创建客户端
-	manager = NewKiteClientManager("zk://10.0.1.92:2181", "ps-trade-a", "123456", 5, l)
+	manager = newKite("zk://10.0.1.92:2181", "ps-trade-a", "123456", 5)
 	manager.SetPublishTopics([]string{"uneed-test"})
-
+	manager.SetListener(&MockTestListener{rc: rc, txc: txc})
 	// 设置接收类型
 	manager.SetBindings(
 		[]*registry.Binding{

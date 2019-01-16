@@ -10,7 +10,7 @@ import (
 	"github.com/blackbeans/turbo"
 )
 
-func (self *KiteClientManager) NodeChange(path string, eventType registry.RegistryEvent, children []string) {
+func (self *kite) NodeChange(path string, eventType registry.RegistryEvent, children []string) {
 
 	//如果是订阅关系变更则处理
 	if strings.HasPrefix(path, registry.KITEQ_SERVER) {
@@ -18,12 +18,12 @@ func (self *KiteClientManager) NodeChange(path string, eventType registry.Regist
 		split := strings.Split(path, "/")
 		if len(split) < 4 {
 			//不合法的订阅璐姐
-			log.WarnLog("kite_client", "KiteClientManager|ChildWatcher|INVALID SERVER PATH |%s|%t", path, children)
+			log.WarnLog("kite_client", "kite|ChildWatcher|INVALID SERVER PATH |%s|%t", path, children)
 			return
 		}
 		//获取topic
 		topic := split[3]
-		log.WarnLog("kite_client", "KiteClientManager|ChildWatcher|Change|%s|%v|%+v", path, children, eventType)
+		log.WarnLog("kite_client", "kite|ChildWatcher|Change|%s|%v|%+v", path, children, eventType)
 		//search topic
 		for _, t := range self.topics {
 			if t == topic {
@@ -35,11 +35,11 @@ func (self *KiteClientManager) NodeChange(path string, eventType registry.Regist
 }
 
 //当触发QServer地址发生变更
-func (self *KiteClientManager) onQServerChanged(topic string, hosts []string) {
+func (self *kite) onQServerChanged(topic string, hosts []string) {
 	self.lock.Lock()
 	defer self.lock.Unlock()
 	//重建一下topic下的kiteclient
-	clients := make([]*kiteClient, 0, 10)
+	clients := make([]*kiteIO, 0, 10)
 	for _, host := range hosts {
 		//如果能查到remoteClient 则直接复用
 		remoteClient := self.clientManager.FindTClient(host)
@@ -47,7 +47,7 @@ func (self *KiteClientManager) onQServerChanged(topic string, hosts []string) {
 			//这里就新建一个remote客户端连接
 			conn, err := dial(host)
 			if nil != err {
-				log.ErrorLog("kite_client", "KiteClientManager|onQServerChanged|Create REMOTE CLIENT|FAIL|%s|%s", err, host)
+				log.ErrorLog("kite_client", "kite|onQServerChanged|Create REMOTE CLIENT|FAIL|%s|%s", err, host)
 				continue
 			}
 			remoteClient = turbo.NewTClient(conn, func() turbo.ICodec {
@@ -60,7 +60,7 @@ func (self *KiteClientManager) onQServerChanged(topic string, hosts []string) {
 					event := turbo.NewPacketEvent(c, p)
 					err := self.pipeline.FireWork(event)
 					if nil != err {
-						log.ErrorLog("kite_client", "KiteClientManager|onPacketRecieve|FAIL|%s|%t", err, p)
+						log.ErrorLog("kite_client", "kite|onPacketRecieve|FAIL|%s|%t", err, p)
 						return err
 					}
 					return nil
@@ -69,21 +69,21 @@ func (self *KiteClientManager) onQServerChanged(topic string, hosts []string) {
 			auth, err := handshake(self.ga, remoteClient)
 			if !auth || nil != err {
 				remoteClient.Shutdown()
-				log.ErrorLog("kite_client", "KiteClientManager|onQServerChanged|HANDSHAKE|FAIL|%s|%s", err, auth)
+				log.ErrorLog("kite_client", "kite|onQServerChanged|HANDSHAKE|FAIL|%s|%s", err, auth)
 				continue
 			}
 			self.clientManager.Auth(self.ga, remoteClient)
 		} else if remoteClient.IsClosed() {
 			//如果当前是关闭的状态，那么就会自动重连，不需要创建新的连接
-			log.InfoLog("kite_client", "KiteClientManager|onQServerChanged|Closed|Wait Reconnect|%s|%s", topic, hosts)
+			log.InfoLog("kite_client", "kite|onQServerChanged|Closed|Wait Reconnect|%s|%s", topic, hosts)
 		}
 
 		//创建kiteClient
-		kiteClient := newKitClient(remoteClient)
+		kiteClient := newKiteIO(remoteClient)
 		clients = append(clients, kiteClient)
 	}
 
-	log.InfoLog("kite_client", "KiteClientManager|onQServerChanged|SUCC|%s|%s", topic, hosts)
+	log.InfoLog("kite_client", "kite|onQServerChanged|SUCC|%s|%s", topic, hosts)
 
 	//替换掉线的server
 	old, ok := self.kiteClients[topic]
@@ -109,14 +109,14 @@ func (self *KiteClientManager) onQServerChanged(topic string, hosts []string) {
 	}
 }
 
-func (self *KiteClientManager) DataChange(path string, binds []*registry.Binding) {
+func (self *kite) DataChange(path string, binds []*registry.Binding) {
 	//IGNORE
-	log.InfoLog("kite_client", "KiteClientManager|DataChange|%s|%s", path, binds)
+	log.InfoLog("kite_client", "kite|DataChange|%s|%s", path, binds)
 }
 
-func (self *KiteClientManager) OnSessionExpired() {
+func (self *kite) OnSessionExpired() {
 	//推送订阅关系和topics
 	self.Start()
 
-	log.InfoLog("kite_client", "KiteClientManager|OnSessionExpired|Restart...")
+	log.InfoLog("kite_client", "kite|OnSessionExpired|Restart...")
 }

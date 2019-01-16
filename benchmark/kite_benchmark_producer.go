@@ -111,8 +111,9 @@ func main() {
 	clients := make([]*client.KiteQClient, 0, *k)
 	for j := 0; j < *k; j++ {
 
-		kiteClient := client.NewKiteQClient(*zkhost, "go-kite-test", "123456", &listener.DefaultListener{})
+		kiteClient := client.NewKiteQClient(*zkhost, "go-kite-test", "123456")
 		kiteClient.SetTopics([]string{"user-profile"})
+		kiteClient.SetListener(&listener.DefaultListener{})
 		kiteClient.Start()
 		clients = append(clients, kiteClient)
 		time.Sleep(3 * time.Second)
