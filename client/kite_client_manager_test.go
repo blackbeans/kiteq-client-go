@@ -2,14 +2,11 @@ package client
 
 import (
 	"fmt"
-	"log"
+	"github.com/blackbeans/kiteq-common/protocol"
+	"github.com/blackbeans/kiteq-common/registry"
+	"github.com/golang/protobuf/proto"
 	"testing"
 	"time"
-
-	"github.com/blackbeans/kiteq-common/protocol"
-	"github.com/blackbeans/kiteq-common/registry/bind"
-	"github.com/blackbeans/kiteq-common/store"
-	"github.com/golang/protobuf/proto"
 )
 
 func buildStringMessage(commit bool) *protocol.StringMessage {
@@ -17,7 +14,7 @@ func buildStringMessage(commit bool) *protocol.StringMessage {
 	entity := &protocol.StringMessage{}
 	entity.Header = &protocol.Header{
 		Snappy:       proto.Bool(true),
-		MessageId:    proto.String(store.MessageId()),
+		MessageId:    proto.String(MessageId()),
 		Topic:        proto.String("uneed-test"),
 		MessageType:  proto.String("pay-succ"),
 		ExpiredTime:  proto.Int64(time.Now().Add(10 * time.Minute).Unix()),
@@ -35,7 +32,7 @@ func buildBytesMessage(commit bool) *protocol.BytesMessage {
 	entity := &protocol.BytesMessage{}
 	entity.Header = &protocol.Header{
 		Snappy:       proto.Bool(true),
-		MessageId:    proto.String(store.MessageId()),
+		MessageId:    proto.String(MessageId()),
 		Topic:        proto.String("uneed-test"),
 		MessageType:  proto.String("pay-succ"),
 		ExpiredTime:  proto.Int64(time.Now().Add(10 * time.Minute).Unix()),
@@ -81,8 +78,8 @@ func init() {
 
 	// 设置接收类型
 	manager.SetBindings(
-		[]*bind.Binding{
-			bind.Bind_Direct("ps-trade-a", "uneed-test", "pay-succ", 1000, true),
+		[]*registry.Binding{
+			registry.Bind_Direct("ps-trade-a", "uneed-test", "pay-succ", 1000, true),
 		},
 	)
 
@@ -96,9 +93,9 @@ func TestStringMesage(t *testing.T) {
 	// 发送数据
 	err := manager.SendMessage(protocol.NewQMessage(m))
 	if nil != err {
-		log.Println("SEND StringMESSAGE |FAIL|", err)
+		t.Logf("SEND StringMESSAGE |FAIL|", err)
 	} else {
-		log.Println("SEND StringMESSAGE |SUCCESS")
+		t.Log("SEND StringMESSAGE |SUCCESS")
 	}
 
 	select {
@@ -118,9 +115,9 @@ func TestBytesMessage(t *testing.T) {
 	// 发送数据
 	err := manager.SendMessage(protocol.NewQMessage(bm))
 	if nil != err {
-		log.Println("SEND BytesMESSAGE |FAIL|", err)
+		t.Logf("SEND BytesMESSAGE |FAIL|%v", err)
 	} else {
-		log.Println("SEND BytesMESSAGE |SUCCESS")
+		t.Log("SEND BytesMESSAGE |SUCCESS")
 	}
 
 	select {
@@ -128,9 +125,9 @@ func TestBytesMessage(t *testing.T) {
 		if mid != bm.GetHeader().GetMessageId() {
 			t.Fail()
 		}
-		log.Println("RECIEVE BytesMESSAGE |SUCCESS")
+		t.Log("RECIEVE BytesMESSAGE |SUCCESS")
 	case <-time.After(10 * time.Second):
-		log.Println("WAIT BytesMESSAGE |TIMEOUT|", err)
+		t.Log("WAIT BytesMESSAGE |TIMEOUT|", err)
 		t.Fail()
 
 	}
@@ -147,22 +144,22 @@ func TestTxBytesMessage(t *testing.T) {
 			return true, nil
 		})
 	if nil != err {
-		log.Println("SEND TxBytesMESSAGE |FAIL|", err)
+		t.Log("SEND TxBytesMESSAGE |FAIL|", err)
 	} else {
-		log.Println("SEND TxBytesMESSAGE |SUCCESS")
+		t.Log("SEND TxBytesMESSAGE |SUCCESS")
 	}
 
 	select {
 	case mid := <-rc:
-		log.Println("RECIEVE TxBytesMESSAGE |SUCCESS", mid)
+		t.Log("RECIEVE TxBytesMESSAGE |SUCCESS", mid)
 	case txid := <-txc:
 		if txid != bm.GetHeader().GetMessageId() {
 			t.Fail()
-			log.Println("SEND TxBytesMESSAGE |RECIEVE TXACK SUCC")
+			t.Log("SEND TxBytesMESSAGE |RECIEVE TXACK SUCC")
 		}
 
 	case <-time.After(10 * time.Second):
-		log.Println("WAIT TxBytesMESSAGE |TIMEOUT")
+		t.Log("WAIT TxBytesMESSAGE |TIMEOUT")
 		t.Fail()
 
 	}

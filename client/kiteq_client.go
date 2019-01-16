@@ -2,7 +2,7 @@ package client
 
 import (
 	"github.com/blackbeans/kiteq-common/protocol"
-	"github.com/blackbeans/kiteq-common/registry/bind"
+	"github.com/blackbeans/kiteq-common/registry"
 )
 
 type KiteQClient struct {
@@ -26,7 +26,7 @@ func (self *KiteQClient) SetTopics(topics []string) {
 	self.kclientManager.SetPublishTopics(topics)
 }
 
-func (self *KiteQClient) SetBindings(bindings []*bind.Binding) {
+func (self *KiteQClient) SetBindings(bindings []*registry.Binding) {
 	self.kclientManager.SetBindings(bindings)
 
 }

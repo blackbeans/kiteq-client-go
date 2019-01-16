@@ -5,10 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/blackbeans/kiteq-common/protocol"
-	"github.com/blackbeans/kiteq-common/store"
 	log "github.com/blackbeans/log4go"
 	"github.com/golang/protobuf/proto"
 	"io"
+	"kiteq-client-go/benchmark/listener"
 	"kiteq-client-go/client"
 	"net/http"
 	_ "net/http/pprof"
@@ -20,9 +20,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-	"kiteq-client-go/benchmark/listener"
 )
-
 
 var body []byte
 var rander = rand.Reader // random function
@@ -38,7 +36,7 @@ func buildBytesMessage(commit bool) *protocol.BytesMessage {
 	//创建消息
 	entity := &protocol.BytesMessage{}
 	entity.Header = &protocol.Header{
-		MessageId:    proto.String(store.MessageId()),
+		MessageId:    proto.String(client.MessageId()),
 		Topic:        proto.String("user-profile"),
 		MessageType:  proto.String("pay-succ"),
 		ExpiredTime:  proto.Int64(time.Now().Add(24 * time.Hour).Unix()),
@@ -57,7 +55,7 @@ func buildStringMessage(commit bool) *protocol.StringMessage {
 	//创建消息
 	entity := &protocol.StringMessage{}
 	entity.Header = &protocol.Header{
-		MessageId:    proto.String(store.MessageId()),
+		MessageId:    proto.String(client.MessageId()),
 		Topic:        proto.String("user-profile"),
 		MessageType:  proto.String("pay-succ"),
 		ExpiredTime:  proto.Int64(-1),

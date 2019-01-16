@@ -1,7 +1,10 @@
 package client
 
-//snappy解压缩
-import "github.com/golang/snappy"
+import (
+	"fmt"
+	uuid "github.com/blackbeans/go-uuid"
+	"github.com/golang/snappy"
+)
 
 func Decompress(body []byte) ([]byte, error) {
 
@@ -30,4 +33,15 @@ func Compress(body []byte) ([]byte, error) {
 
 	dest := make([]byte, l)
 	return snappy.Encode(dest, body), nil
+}
+
+//生成messageId uuid
+func MessageId() string {
+	id := uuid.NewRandom()
+	if id == nil || len(id) != 16 {
+		return ""
+	}
+	b := []byte(id)
+	return fmt.Sprintf("%08x%04x%04x%04x%012x",
+		b[:4], b[4:6], b[6:8], b[8:10], b[10:])
 }

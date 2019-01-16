@@ -1,11 +1,11 @@
 package listener
 
 import (
-	"time"
 	"fmt"
 	"github.com/blackbeans/kiteq-common/protocol"
+	"log"
 	"sync/atomic"
-	"github.com/labstack/gommon/log"
+	"time"
 )
 
 type DefaultListener struct {
@@ -24,8 +24,6 @@ func (self *DefaultListener) Monitor() {
 	}
 }
 
-
-
 func (self *DefaultListener) OnMessage(msg *protocol.QMessage) bool {
 	//	log.Info("DefaultListener|OnMessage|%s", msg.GetHeader().GetMessageId())
 	atomic.AddInt32(&self.count, 1)
@@ -33,7 +31,7 @@ func (self *DefaultListener) OnMessage(msg *protocol.QMessage) bool {
 }
 
 func (self *DefaultListener) OnMessageCheck(tx *protocol.TxResponse) error {
-	log.Info("DefaultListener|OnMessageCheck", tx.MessageId)
+	log.Printf("DefaultListener|OnMessageCheck", tx.MessageId)
 	tx.Commit()
 	return nil
 }

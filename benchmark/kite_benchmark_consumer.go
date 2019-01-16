@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/blackbeans/kiteq-common/registry"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -12,13 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/blackbeans/kiteq-common/registry/bind"
 	log "github.com/blackbeans/log4go"
-	 "kiteq-client-go/client"
 	"kiteq-client-go/benchmark/listener"
+	"kiteq-client-go/client"
 )
-
-
 
 func main() {
 	logxml := flag.String("logxml", "../log/log_consumer.xml", "-logxml=../log/log_consumer.xml")
@@ -36,8 +34,8 @@ func main() {
 	go lis.Monitor()
 
 	kite := client.NewKiteQClient(*zkhost, "s-mts-test1", "123456", lis)
-	kite.SetBindings([]*bind.Binding{
-		bind.Bind_Direct("s-mts-test1", "user-profile", "pay-succ", 8000, true),
+	kite.SetBindings([]*registry.Binding{
+		registry.Bind_Direct("s-mts-test1", "user-profile", "pay-succ", 8000, true),
 	})
 	kite.Start()
 

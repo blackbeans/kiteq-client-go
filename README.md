@@ -27,7 +27,7 @@ kiteq-client-go is kiteq's go client
         //构建消息
         msg := &protocol.StringMessage{}
         msg.Header = &protocol.Header{
-            MessageId:     proto.String(store.MessageId()),
+            MessageId:     proto.String(client.MessageId()),
             Topic:         proto.String("trade"),
             MessageType:   proto.String("pay-succ"),
             ExpiredTime:   proto.Int64(time.Now().Unix()),

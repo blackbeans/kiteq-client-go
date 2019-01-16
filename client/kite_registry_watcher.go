@@ -4,10 +4,10 @@ import (
 	"strings"
 
 	"github.com/blackbeans/kiteq-common/registry"
-	"github.com/blackbeans/kiteq-common/registry/bind"
+
+	"github.com/blackbeans/kiteq-common/protocol"
 	log "github.com/blackbeans/log4go"
 	"github.com/blackbeans/turbo"
-	"github.com/blackbeans/kiteq-common/protocol"
 )
 
 func (self *KiteClientManager) NodeChange(path string, eventType registry.RegistryEvent, children []string) {
@@ -54,7 +54,7 @@ func (self *KiteClientManager) onQServerChanged(topic string, hosts []string) {
 				return protocol.KiteQBytesCodec{
 					MaxFrameLength: turbo.MAX_PACKET_BYTES}
 			},
-				func(ctx *turbo.TContext) error{
+				func(ctx *turbo.TContext) error {
 					p := ctx.Message
 					c := ctx.Client
 					event := turbo.NewPacketEvent(c, p)
@@ -73,7 +73,7 @@ func (self *KiteClientManager) onQServerChanged(topic string, hosts []string) {
 				continue
 			}
 			self.clientManager.Auth(self.ga, remoteClient)
-		}else if remoteClient.IsClosed(){
+		} else if remoteClient.IsClosed() {
 			//如果当前是关闭的状态，那么就会自动重连，不需要创建新的连接
 			log.InfoLog("kite_client", "KiteClientManager|onQServerChanged|Closed|Wait Reconnect|%s|%s", topic, hosts)
 		}
@@ -109,7 +109,7 @@ func (self *KiteClientManager) onQServerChanged(topic string, hosts []string) {
 	}
 }
 
-func (self *KiteClientManager) DataChange(path string, binds []*bind.Binding) {
+func (self *KiteClientManager) DataChange(path string, binds []*registry.Binding) {
 	//IGNORE
 	log.InfoLog("kite_client", "KiteClientManager|DataChange|%s|%s", path, binds)
 }
