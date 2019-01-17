@@ -98,7 +98,7 @@ func (self *kite) Start() {
 	pipeline.RegisteHandler("kiteclient-heartbeat", NewHeartbeatHandler("kiteclient-heartbeat", 10*time.Second, 5*time.Second, self.clientManager))
 	pipeline.RegisteHandler("kiteclient-accept", NewAcceptHandler("kiteclient-accept", self.listener))
 	pipeline.RegisteHandler("kiteclient-remoting", turbo.NewRemotingHandler("kiteclient-remoting", self.clientManager))
-
+	self.pipeline = pipeline
 	//注册kiteqserver的变更
 	self.registryCenter.RegisteWatcher(PATH_KITEQ_SERVER, self)
 	hostname, _ := os.Hostname()
