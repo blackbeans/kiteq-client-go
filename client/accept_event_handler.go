@@ -17,10 +17,10 @@ type acceptEvent struct {
 	msgType      uint8
 	msg          interface{} //attach的数据message
 	remoteClient *turbo.TClient
-	opaque       int32
+	opaque       uint32
 }
 
-func newAcceptEvent(msgType uint8, msg interface{}, remoteClient *turbo.TClient, opaque int32) *acceptEvent {
+func newAcceptEvent(msgType uint8, msg interface{}, remoteClient *turbo.TClient, opaque uint32) *acceptEvent {
 	return &acceptEvent{
 		msgType:      msgType,
 		msg:          msg,

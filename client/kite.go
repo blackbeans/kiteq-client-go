@@ -46,7 +46,7 @@ func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
 		"remoting-"+groupId,
 		50, 16*1024,
 		16*1024, 10000, 10000,
-		10*time.Second, 160000)
+		10*time.Second)
 
 	registryCenter := registry.NewRegistryCenter(registryUri)
 	ga := turbo.NewGroupAuth(groupId, secretKey)
