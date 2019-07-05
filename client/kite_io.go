@@ -81,7 +81,7 @@ func (self *kiteIO) innerSendMessage(cmdType uint8, p []byte, timeout time.Durat
 
 	//如果是需要等待结果的则等待
 	if timeout <= 0 {
-		_, err := self.client.Write(*msgpacket)
+		err := self.client.Write(*msgpacket)
 		return err
 	} else {
 		resp, err := self.client.WriteAndGet(*msgpacket, timeout)
