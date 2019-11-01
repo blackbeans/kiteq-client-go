@@ -85,7 +85,7 @@ func init() {
 	manager.Start()
 }
 
-func TestStringMesage(t *testing.T) {
+func TestStringMessage(t *testing.T) {
 
 	m := buildStringMessage(true)
 	// 发送数据

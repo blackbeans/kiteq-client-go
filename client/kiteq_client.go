@@ -36,12 +36,12 @@ func (self *KiteQClient) SetBindings(bindings []*registry.Binding) {
 
 }
 
-func (self *KiteQClient) SendTxStringMessage(msg *protocol.StringMessage, transcation DoTranscation) error {
+func (self *KiteQClient) SendTxStringMessage(msg *protocol.StringMessage, transcation DoTransaction) error {
 	message := protocol.NewQMessage(msg)
 	return self.k.SendTxMessage(message, transcation)
 }
 
-func (self *KiteQClient) SendTxBytesMessage(msg *protocol.BytesMessage, transcation DoTranscation) error {
+func (self *KiteQClient) SendTxBytesMessage(msg *protocol.BytesMessage, transcation DoTransaction) error {
 	message := protocol.NewQMessage(msg)
 	return self.k.SendTxMessage(message, transcation)
 }
@@ -57,5 +57,5 @@ func (self *KiteQClient) SendBytesMessage(msg *protocol.BytesMessage) error {
 }
 
 func (self *KiteQClient) Destory() {
-	self.k.Destory()
+	self.k.Destroy()
 }

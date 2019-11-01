@@ -23,7 +23,7 @@ const (
 )
 
 //本地事务的方法
-type DoTranscation func(message *protocol.QMessage) (bool, error)
+type DoTransaction func(message *protocol.QMessage) (bool, error)
 
 type kite struct {
 	ga             *turbo.GroupAuth
@@ -216,7 +216,7 @@ func (self *kite) SetBindings(bindings []*registry.Binding) {
 }
 
 //发送事务消息
-func (self *kite) SendTxMessage(msg *protocol.QMessage, doTranscation DoTranscation) (err error) {
+func (self *kite) SendTxMessage(msg *protocol.QMessage, doTranscation DoTransaction) (err error) {
 
 	msg.GetHeader().GroupId = protocol.MarshalPbString(self.ga.GroupId)
 
@@ -283,7 +283,7 @@ func (self *kite) selectKiteClient(header *protocol.Header) (*kiteIO, error) {
 	return nil, errors.New("NO Alive KITE CLIENT ! [" + header.GetTopic() + "]")
 }
 
-func (self *kite) Destory() {
+func (self *kite) Destroy() {
 	self.registryCenter.Close()
 	self.closed()
 }
