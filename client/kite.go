@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 
 	"math/rand"
@@ -37,6 +38,8 @@ type kite struct {
 	lock           sync.RWMutex
 	config         *turbo.TConfig
 	flowstat       *stat.FlowStat
+	ctx            context.Context
+	closed         context.CancelFunc
 }
 
 func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
@@ -52,6 +55,8 @@ func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
 	registryCenter := registry.NewRegistryCenter(registryUri)
 	ga := turbo.NewGroupAuth(groupId, secretKey)
 	ga.WarmingupSec = warmingupSec
+
+	ctx, closed := context.WithCancel(context.Background())
 	manager := &kite{
 		ga:             ga,
 		kiteClients:    make(map[string][]*kiteIO, 10),
@@ -59,7 +64,10 @@ func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
 		config:         config,
 		flowstat:       flowstat,
 		registryUri:    registryUri,
-		registryCenter: registryCenter}
+		registryCenter: registryCenter,
+		ctx:            ctx,
+		closed:         closed,
+	}
 	return manager
 }
 
@@ -277,4 +285,5 @@ func (self *kite) selectKiteClient(header *protocol.Header) (*kiteIO, error) {
 
 func (self *kite) Destory() {
 	self.registryCenter.Close()
+	self.closed()
 }

@@ -50,7 +50,7 @@ func (self *kite) onQServerChanged(topic string, hosts []string) {
 				log.ErrorLog("kite_client", "kite|onQServerChanged|Create REMOTE CLIENT|FAIL|%s|%s", err, host)
 				continue
 			}
-			remoteClient = turbo.NewTClient(conn, func() turbo.ICodec {
+			remoteClient = turbo.NewTClient(self.ctx, conn, func() turbo.ICodec {
 				return protocol.KiteQBytesCodec{
 					MaxFrameLength: turbo.MAX_PACKET_BYTES}
 			},
