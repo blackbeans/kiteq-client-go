@@ -13,9 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/blackbeans/kiteq-client-go/benchmark/listener"
+	"github.com/blackbeans/kiteq-client-go/client"
 	log "github.com/blackbeans/log4go"
-	"kiteq-client-go/benchmark/listener"
-	"kiteq-client-go/client"
 )
 
 func main() {
