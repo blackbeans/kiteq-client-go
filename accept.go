@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-
 	"github.com/blackbeans/log4go"
 
 	"github.com/blackbeans/kiteq-common/protocol"
@@ -55,7 +54,7 @@ func (self *AcceptHandler) cast(event turbo.IEvent) (val *acceptEvent, ok bool) 
 var INVALID_MSG_TYPE_ERROR = errors.New("INVALID MSG TYPE !")
 
 func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turbo.IEvent) error {
-	// log.DebugLog("kite_client_handler","AcceptHandler|Process|%s|%t\n", self.GetName(), event)
+	// log.DebugLog("kite","AcceptHandler|Process|%s|%t\n", self.GetName(), event)
 
 	acceptEvent, ok := self.cast(event)
 	if !ok {
@@ -66,7 +65,7 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 	case protocol.CMD_TX_ACK:
 
 		//回调事务完成的监听器
-		// log.DebugLog("kite_client_handler","AcceptHandler|Check Message|%t\n", acceptEvent.Msg)
+		// log.DebugLog("kite","AcceptHandler|Check Message|%t\n", acceptEvent.Msg)
 		txPacket := acceptEvent.msg.(*protocol.TxACKPacket)
 		header := txPacket.GetHeader()
 		tx := protocol.NewTxResponse(header)
@@ -85,11 +84,11 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 		//发送提交结果确认的Packet
 		remotingEvent := turbo.NewRemotingEvent(txResp, []string{acceptEvent.remoteClient.RemoteAddr()})
 		ctx.SendForward(remotingEvent)
-		// log.DebugLog("kite_client_handler","AcceptHandler|Recieve TXMessage|%t\n", acceptEvent.Msg)
+		// log.DebugLog("kite","AcceptHandler|Recieve TXMessage|%t\n", acceptEvent.Msg)
 
 	case protocol.CMD_STRING_MESSAGE, protocol.CMD_BYTES_MESSAGE:
 		//这里应该回调消息监听器然后发送处理结果
-		//log.DebugLog("kite_client_handler","AcceptHandler|Recieve Message|%t\n", acceptEvent.Msg)
+		//log.DebugLog("kite","AcceptHandler|Recieve Message|%t\n", acceptEvent.Msg)
 
 		message := protocol.NewQMessage(acceptEvent.msg)
 
@@ -125,7 +124,7 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					err = fmt.Errorf("%s", r)
+					err = fmt.Errorf("%v", err)
 				}
 			}()
 			succ = self.listener.OnMessage(message)

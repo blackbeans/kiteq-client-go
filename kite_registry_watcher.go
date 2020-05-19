@@ -53,18 +53,7 @@ func (self *kite) onQServerChanged(topic string, hosts []string) {
 			remoteClient = turbo.NewTClient(self.ctx, conn, func() turbo.ICodec {
 				return protocol.KiteQBytesCodec{
 					MaxFrameLength: turbo.MAX_PACKET_BYTES}
-			},
-				func(ctx *turbo.TContext) error {
-					p := ctx.Message
-					c := ctx.Client
-					event := turbo.NewPacketEvent(c, p)
-					err := self.pipeline.FireWork(event)
-					if nil != err {
-						log.ErrorLog("kite_client", "kite|onPacketRecieve|FAIL|%s|%t", err, p)
-						return err
-					}
-					return nil
-				}, self.config)
+			}, self.fire, self.config)
 			remoteClient.Start()
 			auth, err := handshake(self.ga, remoteClient)
 			if !auth || nil != err {

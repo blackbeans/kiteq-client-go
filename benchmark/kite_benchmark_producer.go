@@ -4,8 +4,8 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
+	"github.com/blackbeans/kiteq-client-go"
 	"github.com/blackbeans/kiteq-client-go/benchmark/listener"
-	"github.com/blackbeans/kiteq-client-go/client"
 	"github.com/blackbeans/kiteq-common/protocol"
 	log "github.com/blackbeans/log4go"
 	"github.com/golang/protobuf/proto"
@@ -71,7 +71,7 @@ func buildStringMessage(commit bool) *protocol.StringMessage {
 }
 
 func main() {
-	logxml := flag.String("logxml", "../log/log_producer.xml", "-logxml=../log/log_producer.xml")
+	logxml := flag.String("logxml", "../log_producer.xml", "-logxml=../log_producer.xml")
 	k := flag.Int("k", 1, "-k=1  //kiteclient num ")
 	c := flag.Int("c", 1, "-c=100")
 	tx := flag.Bool("tx", false, "-tx=true send Tx Message")

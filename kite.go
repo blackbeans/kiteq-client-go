@@ -3,6 +3,9 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
+	"runtime"
+	"sort"
 
 	"math/rand"
 	"net"
@@ -40,6 +43,8 @@ type kite struct {
 	flowstat       *stat.FlowStat
 	ctx            context.Context
 	closed         context.CancelFunc
+	pools          map[uint8]*turbo.GPool
+	defaultPool    *turbo.GPool
 }
 
 func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
@@ -57,6 +62,7 @@ func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
 	ga.WarmingupSec = warmingupSec
 
 	ctx, closed := context.WithCancel(context.Background())
+
 	manager := &kite{
 		ga:             ga,
 		kiteClients:    make(map[string][]*kiteIO, 10),
@@ -99,14 +105,39 @@ func (self *kite) Start() {
 	//重连管理器
 	reconnManager := turbo.NewReconnectManager(true, 30*time.Second,
 		100, handshake)
+	self.clientManager = turbo.NewClientManager(reconnManager)
 
 	//构造pipeline的结构
 	pipeline := turbo.NewDefaultPipeline()
-	self.clientManager = turbo.NewClientManager(reconnManager)
-	pipeline.RegisteHandler("kiteclient-packet", NewPacketHandler("kiteclient-packet"))
-	pipeline.RegisteHandler("kiteclient-heartbeat", NewHeartbeatHandler("kiteclient-heartbeat", 10*time.Second, 5*time.Second, self.clientManager))
-	pipeline.RegisteHandler("kiteclient-accept", NewAcceptHandler("kiteclient-accept", self.listener))
-	pipeline.RegisteHandler("kiteclient-remoting", turbo.NewRemotingHandler("kiteclient-remoting", self.clientManager))
+	ackHandler := NewAckHandler("ack", 10*time.Second, 5*time.Second, self.clientManager)
+	accept := NewAcceptHandler("accept", self.listener)
+	remoting := turbo.NewRemotingHandler("remoting", self.clientManager)
+
+	//对于ack和acceptevent使用不同的线程池，优先级不同
+	msgPool := turbo.NewLimitPool(self.ctx, self.config.TW, 50)
+	ackPool := turbo.NewLimitPool(self.ctx, self.config.TW, 5)
+	storeAckPool := turbo.NewLimitPool(self.ctx, self.config.TW, 5)
+	defaultPool := turbo.NewLimitPool(self.ctx, self.config.TW, 5)
+
+	//pools
+	pools := make(map[uint8]*turbo.GPool)
+	pools[protocol.CMD_CONN_AUTH] = ackPool
+	pools[protocol.CMD_HEARTBEAT] = ackPool
+	pools[protocol.CMD_MESSAGE_STORE_ACK] = storeAckPool
+	pools[protocol.CMD_TX_ACK] = msgPool
+	pools[protocol.CMD_BYTES_MESSAGE] = msgPool
+	pools[protocol.CMD_STRING_MESSAGE] = msgPool
+
+	self.pools = pools
+	self.defaultPool = defaultPool
+
+	unmarshal := NewUnmarshalHandler("unmarshal",
+		pools,
+		defaultPool)
+	pipeline.RegisteHandler("unmarshal", unmarshal)
+	pipeline.RegisteHandler("ack", ackHandler)
+	pipeline.RegisteHandler("accept", accept)
+	pipeline.RegisteHandler("remoting", remoting)
 	self.pipeline = pipeline
 	//注册kiteqserver的变更
 	self.registryCenter.RegisteWatcher(PATH_KITEQ_SERVER, self)
@@ -154,6 +185,52 @@ outter:
 
 	//开启流量统计
 	self.remointflow()
+	go ackHandler.heartbeat()
+	go self.poolMonitor()
+
+}
+
+//poolMonitor
+func (self *kite) poolMonitor() {
+	for {
+		select {
+		case <-self.ctx.Done():
+			break
+		default:
+
+		}
+
+		keys := make([]int, 0, len(self.pools))
+		for cmdType := range self.pools {
+			keys = append(keys, int(cmdType))
+		}
+		sort.Ints(keys)
+		str := fmt.Sprintf("Cmd-Pool\tGoroutines:%d\t", runtime.NumGoroutine())
+		for _, cmdType := range keys {
+			p := self.pools[uint8(cmdType)]
+			used, capsize := p.Monitor()
+			str += fmt.Sprintf("%s:%d/%d\t", protocol.NameOfCmd(uint8(cmdType)), used, capsize)
+		}
+
+		used, capsize := self.defaultPool.Monitor()
+		str += fmt.Sprintf("default:%d/%d\t", used, capsize)
+		log.ErrorLog("kite_client", str)
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+//kiteQClient的处理器
+func (self *kite) fire(ctx *turbo.TContext) error {
+	p := ctx.Message
+	c := ctx.Client
+	event := turbo.NewPacketEvent(c, p)
+	err := self.pipeline.FireWork(event)
+	if nil != err {
+		log.ErrorLog("kite_client", "kite|onPacketReceive|FAIL|%s|%t", err, p)
+		return err
+	}
+	return nil
 }
 
 //创建物理连接

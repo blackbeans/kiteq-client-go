@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/blackbeans/kiteq-client-go"
 	"github.com/blackbeans/kiteq-common/registry"
 	"net/http"
 	_ "net/http/pprof"
@@ -14,12 +15,11 @@ import (
 	"time"
 
 	"github.com/blackbeans/kiteq-client-go/benchmark/listener"
-	"github.com/blackbeans/kiteq-client-go/client"
 	log "github.com/blackbeans/log4go"
 )
 
 func main() {
-	logxml := flag.String("logxml", "../log/log_consumer.xml", "-logxml=../log/log_consumer.xml")
+	logxml := flag.String("logxml", "../log_consumer.xml", "-logxml=../log_consumer.xml")
 	zkhost := flag.String("registryUri", "etcd://http://localhost:2379", "-registryUri=etcd://http://localhost:2379")
 	warmingUp := flag.Int("warmingUp", 10, "-warmingUp=10")
 	flag.Parse()
