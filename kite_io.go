@@ -92,7 +92,7 @@ func (self *kiteIO) innerSendMessage(cmdType uint8, p []byte, timeout time.Durat
 			if !ok || !storeAck.GetStatus() {
 				return errors.New(fmt.Sprintf("kiteIO|SendMessage|FAIL|%s\n", resp))
 			} else {
-				//log.DebugLog("kite_client","kiteIO|SendMessage|SUCC|%s|%s\n", storeAck.GetMessageId(), storeAck.GetFeedback())
+				//log.DebugLog("kite","kiteIO|SendMessage|SUCC|%s|%s\n", storeAck.GetMessageId(), storeAck.GetFeedback())
 				return nil
 			}
 		}

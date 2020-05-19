@@ -99,7 +99,7 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 
 				data, err := Decompress(message.GetBody().([]byte))
 				if nil != err {
-					log4go.ErrorLog("kite_client", "AcceptHandler|CMD_BYTES_MESSAGE|Body Decompress|FAIL|%s|%s", err, string(message.GetBody().([]byte)))
+					log4go.ErrorLog("kite", "AcceptHandler|CMD_BYTES_MESSAGE|Body Decompress|FAIL|%s|%s", err, string(message.GetBody().([]byte)))
 					//如果解压失败那么采用不解压
 					data = message.GetBody().([]byte)
 				}
@@ -111,7 +111,7 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 				}
 				data, err = Decompress(data)
 				if nil != err {
-					log4go.ErrorLog("kite_client", "AcceptHandler|CMD_STRING_MESSAGE|Body Decompress|FAIL|%s|%s", err, string(message.GetBody().([]byte)))
+					log4go.ErrorLog("kite", "AcceptHandler|CMD_STRING_MESSAGE|Body Decompress|FAIL|%s|%s", err, string(message.GetBody().([]byte)))
 					//如果解压失败那么采用不解压
 					data = message.GetBody().([]byte)
 				}
