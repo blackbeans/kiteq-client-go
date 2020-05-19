@@ -214,7 +214,7 @@ func (self *kite) poolMonitor() {
 
 		used, capsize := self.defaultPool.Monitor()
 		str += fmt.Sprintf("default:%d/%d\t", used, capsize)
-		log.ErrorLog("kite", str)
+		log.InfoLog("kite", str)
 
 		time.Sleep(1 * time.Second)
 	}
