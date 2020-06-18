@@ -126,7 +126,7 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 			defer func() {
 				if r := recover(); r != nil {
 					err = fmt.Errorf("%v", r)
-					log4go.ErrorLog("kite", "AcceptHandler|Recover|%v|%v", r, string(debug.Stack()[:256]))
+					log4go.ErrorLog("kite", "AcceptHandler|Recover|%v|%v", r, string(debug.Stack()))
 				}
 			}()
 			succ = self.listener.OnMessage(message)
