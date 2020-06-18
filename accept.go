@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/blackbeans/log4go"
+	"runtime/debug"
 
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/blackbeans/turbo"
@@ -124,7 +125,8 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					err = fmt.Errorf("%v", err)
+					err = fmt.Errorf("%v", r)
+					log4go.ErrorLog("kite", "AcceptHandler|Recover|%v|%v", r, string(debug.Stack()[:256]))
 				}
 			}()
 			succ = self.listener.OnMessage(message)
