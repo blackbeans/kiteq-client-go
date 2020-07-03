@@ -48,7 +48,7 @@ type kite struct {
 	defaultPool    *turbo.GPool
 }
 
-func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
+func newKite(registryUri, groupId, secretKey string, warmingupSec int, listener IListener) *kite {
 
 	flowstat := stat.NewFlowStat()
 	config := turbo.NewTConfig(
@@ -74,7 +74,7 @@ func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
 		registryCenter: registryCenter,
 		ctx:            ctx,
 		closed:         closed,
-		listener:       NewKiteQListener(),
+		listener:       listener,
 	}
 	return manager
 }
@@ -95,6 +95,10 @@ func (self *kite) remointflow() {
 //会自动创建默认的Listener,只需要在订阅期间Binding设置处理器即可
 func (self *kite) SetListener(listener IListener) {
 	self.listener = listener
+}
+
+func (self *kite) GetListener() IListener {
+	return self.listener
 }
 
 //启动
