@@ -52,8 +52,9 @@ func NewKiteQListener() *KiteQListener {
 }
 
 //增加中间件
-func (self *KiteQListener) AddMiddleWares(wares ...MiddleWare) {
+func (self *KiteQListener) AddMiddleWares(wares ...MiddleWare) IListener {
 	self.wares = wares
+	return self
 }
 
 func (self *KiteQListener) RegisteHandler(bind *registry.Binding) IListener {
