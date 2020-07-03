@@ -6,6 +6,22 @@ import (
 	"github.com/blackbeans/log4go"
 )
 
+//
+type IListener interface {
+	//接受投递消息的回调
+	OnMessage(msg *protocol.QMessage) bool
+	//接收事务回调
+	// 除非明确提交成功、其余都为不成功
+	// 有异常或者返回值为false均为不提交
+	OnMessageCheck(tx *protocol.TxResponse) error
+
+	//注册下handler，使用bingding的形式来
+	RegisteHandler(bind *registry.Binding) IListener
+
+	//增加消息处理的中间件
+	AddMiddleWares(wares ...MiddleWare) IListener
+}
+
 //消息处理上下文
 type Context struct {
 	Msg *protocol.QMessage

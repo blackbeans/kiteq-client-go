@@ -43,3 +43,7 @@ func (self *DefaultListener) OnMessageCheck(tx *protocol.TxResponse) error {
 func (self *DefaultListener) RegisteHandler(bind *registry.Binding) client.IListener {
 	return self
 }
+
+func (self *DefaultListener) AddMiddleWares(wares ...client.MiddleWare) client.IListener {
+	return self
+}
