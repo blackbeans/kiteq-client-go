@@ -18,6 +18,10 @@ func (self *KiteQClient) SetListener(listener IListener) {
 	self.k.SetListener(listener)
 }
 
+func (self *KiteQClient) GetListener() IListener {
+	return self.k.listener
+}
+
 func NewKiteQClient(zkAddr, groupId, secretKey string) *KiteQClient {
 	return NewKiteQClientWithWarmup(zkAddr, groupId, secretKey, 0)
 }
