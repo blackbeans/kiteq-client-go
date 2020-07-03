@@ -29,10 +29,11 @@ const (
 type DoTransaction func(message *protocol.QMessage) (bool, error)
 
 type kite struct {
-	ga             *turbo.GroupAuth
-	registryUri    string
-	topics         []string
-	binds          []*registry.Binding //订阅的关系
+	ga          *turbo.GroupAuth
+	registryUri string
+	topics      []string
+	binds       []*registry.Binding //订阅的关系
+	//bindWithHandlers map[string/*topic_messagetype*/]*registry.Binding //
 	clientManager  *turbo.ClientManager
 	listener       IListener
 	kiteClients    map[string] /*topic*/ []*kiteIO //topic对应的kiteclient
@@ -73,6 +74,7 @@ func newKite(registryUri, groupId, secretKey string, warmingupSec int) *kite {
 		registryCenter: registryCenter,
 		ctx:            ctx,
 		closed:         closed,
+		listener:       NewKiteQListener(),
 	}
 	return manager
 }
@@ -89,7 +91,8 @@ func (self *kite) remointflow() {
 	}()
 }
 
-//设置listner
+//废弃了设置listner
+//会自动创建默认的Listener,只需要在订阅期间Binding设置处理器即可
 func (self *kite) SetListener(listener IListener) {
 	self.listener = listener
 }
@@ -287,9 +290,11 @@ func (self *kite) SetPublishTopics(topics []string) {
 func (self *kite) SetBindings(bindings []*registry.Binding) {
 	for _, b := range bindings {
 		b.GroupId = self.ga.GroupId
+		if nil != b.Handler {
+			self.listener.RegisteHandler(b)
+		}
 	}
 	self.binds = bindings
-
 }
 
 //发送事务消息

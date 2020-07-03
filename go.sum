@@ -16,6 +16,8 @@ github.com/blackbeans/kiteq-common v0.0.0-20200519083306-df4f50ce4c59 h1:xwXW/dA
 github.com/blackbeans/kiteq-common v0.0.0-20200519083306-df4f50ce4c59/go.mod h1:+kBN3O626nmTOwI102gva4Gj1dkbK+uH3fh4mH20VaQ=
 github.com/blackbeans/kiteq-common v0.0.0-20200519083900-eeaf9e4dd399 h1:eoOWhGgdOhFDLz2TYLdJp77JVndnECjG/RTkXbCTDjA=
 github.com/blackbeans/kiteq-common v0.0.0-20200519083900-eeaf9e4dd399/go.mod h1:+kBN3O626nmTOwI102gva4Gj1dkbK+uH3fh4mH20VaQ=
+github.com/blackbeans/kiteq-common v0.0.0-20200703104826-8381e99d2869 h1:AzCV0De4uDLcr1PvIG4t/nIyTALaJFTszuCv72QI2XA=
+github.com/blackbeans/kiteq-common v0.0.0-20200703104826-8381e99d2869/go.mod h1:+kBN3O626nmTOwI102gva4Gj1dkbK+uH3fh4mH20VaQ=
 github.com/blackbeans/log4go v0.0.0-20171230160053-a20c293261cf h1:rUrC7sm66LCWxsP8NFxkDkRKRnDkH55Ya+2orrGxrSk=
 github.com/blackbeans/log4go v0.0.0-20171230160053-a20c293261cf/go.mod h1:aVGIz1ITiF8izhVteTEoiKPCicK3IHezk2U6X2JYQWo=
 github.com/blackbeans/pool v3.1.2-0.20180925064145-36216c1c8350+incompatible/go.mod h1:XHQYXJl0kWRAXXUvY3h/8/scLiSHs5s545obDgsSyD0=
