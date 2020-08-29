@@ -1,9 +1,11 @@
 package client
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -12,30 +14,18 @@ import (
 	"github.com/blackbeans/turbo"
 )
 
-type kiteIO struct {
-	client *turbo.TClient
-}
-
-func newKiteIO(c *turbo.TClient) *kiteIO {
-
-	client := &kiteIO{
-		client: c}
-
-	return client
-}
-
 //发送事务的确认,无需等待服务器反馈
-func (self *kiteIO) sendTxAck(message *protocol.QMessage,
+func sendTxAck(tclient *turbo.TClient, message *protocol.QMessage,
 	txstatus protocol.TxStatus, feedback string) error {
 	//写入时间
 	if message.GetHeader().GetCreateTime() <= 0 {
 		message.GetHeader().CreateTime = protocol.MarshalInt64(time.Now().Unix())
 	}
 	txpacket := protocol.MarshalTxACKPacket(message.GetHeader(), txstatus, feedback)
-	return self.innerSendMessage(protocol.CMD_TX_ACK, txpacket, 0)
+	return innerSendMessage(tclient, protocol.CMD_TX_ACK, txpacket, 0)
 }
 
-func (self *kiteIO) sendMessage(message *protocol.QMessage) error {
+func sendMessage(tclient *turbo.TClient, message *protocol.QMessage) error {
 	//写入时间
 	if message.GetHeader().GetCreateTime() <= 0 {
 		message.GetHeader().CreateTime = protocol.MarshalInt64(time.Now().Unix())
@@ -70,21 +60,21 @@ func (self *kiteIO) sendMessage(message *protocol.QMessage) error {
 		return err
 	}
 	timeout := 3 * time.Second
-	return self.innerSendMessage(message.GetMsgType(), data, timeout)
+	return innerSendMessage(tclient, message.GetMsgType(), data, timeout)
 }
 
 var TIMEOUT_ERROR = errors.New("WAIT RESPONSE TIMEOUT ")
 
-func (self *kiteIO) innerSendMessage(cmdType uint8, p []byte, timeout time.Duration) error {
+func innerSendMessage(tclient *turbo.TClient, cmdType uint8, p []byte, timeout time.Duration) error {
 
 	msgpacket := turbo.NewPacket(cmdType, p)
 
 	//如果是需要等待结果的则等待
 	if timeout <= 0 {
-		err := self.client.Write(*msgpacket)
+		err := tclient.Write(*msgpacket)
 		return err
 	} else {
-		resp, err := self.client.WriteAndGet(*msgpacket, timeout)
+		resp, err := tclient.WriteAndGet(*msgpacket, timeout)
 		if nil != err {
 			return err
 		} else {
@@ -97,4 +87,44 @@ func (self *kiteIO) innerSendMessage(cmdType uint8, p []byte, timeout time.Durat
 			}
 		}
 	}
+}
+
+//future task
+type FutureTask struct {
+	wg   *sync.WaitGroup
+	once *sync.Once
+	do   func(ctx context.Context) (interface{}, error)
+
+	err    error
+	result interface{}
+}
+
+func NewFutureTask(do func(ctx context.Context) (interface{}, error)) *FutureTask {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	return &FutureTask{
+		wg:   wg,
+		once: &sync.Once{},
+		do:   do,
+	}
+}
+
+func (self *FutureTask) Run(ctx context.Context) {
+	self.once.Do(func() {
+		if nil != self.do {
+			select {
+			case <-ctx.Done():
+			default:
+				self.result, self.err = self.do(ctx)
+			}
+
+		}
+		self.wg.Done()
+	})
+}
+
+//获取本次执行结果
+func (self *FutureTask) Get() (interface{}, error) {
+	self.wg.Wait()
+	return self.result, self.err
 }

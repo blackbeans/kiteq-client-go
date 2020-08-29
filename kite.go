@@ -25,18 +25,28 @@ const (
 	PATH_KITEQ_SERVER = "/kiteq/server"
 )
 
+var addressPool = &sync.Pool{}
+
+func init() {
+	addressPool.New = func() interface{} {
+		return make([]*turbo.TClient, 0, 10)
+	}
+}
+
 //本地事务的方法
 type DoTransaction func(message *protocol.QMessage) (bool, error)
 
 type kite struct {
-	ga          *turbo.GroupAuth
-	registryUri string
-	topics      []string
-	binds       []*registry.Binding //订阅的关系
-	//bindWithHandlers map[string/*topic_messagetype*/]*registry.Binding //
-	clientManager  *turbo.ClientManager
-	listener       IListener
-	kiteClients    map[string] /*topic*/ []*kiteIO //topic对应的kiteclient
+	ga            *turbo.GroupAuth
+	registryUri   string
+	topics        []string
+	binds         []*registry.Binding //订阅的关系
+	clientManager *turbo.ClientManager
+	listener      IListener
+
+	topicToAddress   *sync.Map //topic对应的address
+	addressToTClient *sync.Map //远程地址对应的物理连接
+
 	registryCenter *registry.RegistryCenter
 	pipeline       *turbo.DefaultPipeline
 	lock           sync.RWMutex
@@ -46,6 +56,10 @@ type kite struct {
 	closed         context.CancelFunc
 	pools          map[uint8]*turbo.GPool
 	defaultPool    *turbo.GPool
+
+	//心跳时间
+	heartbeatPeriod  time.Duration
+	heartbeatTimeout time.Duration
 }
 
 func newKite(registryUri, groupId, secretKey string, warmingupSec int, listener IListener) *kite {
@@ -65,16 +79,19 @@ func newKite(registryUri, groupId, secretKey string, warmingupSec int, listener 
 	ctx, closed := context.WithCancel(context.Background())
 
 	manager := &kite{
-		ga:             ga,
-		kiteClients:    make(map[string][]*kiteIO, 10),
-		topics:         make([]string, 0, 10),
-		config:         config,
-		flowstat:       flowstat,
-		registryUri:    registryUri,
-		registryCenter: registryCenter,
-		ctx:            ctx,
-		closed:         closed,
-		listener:       listener,
+		ga:               ga,
+		topicToAddress:   &sync.Map{},
+		addressToTClient: &sync.Map{},
+		topics:           make([]string, 0, 10),
+		config:           config,
+		flowstat:         flowstat,
+		registryUri:      registryUri,
+		registryCenter:   registryCenter,
+		ctx:              ctx,
+		closed:           closed,
+		listener:         listener,
+		heartbeatPeriod:  10 * time.Second,
+		heartbeatTimeout: 5 * time.Second,
 	}
 	return manager
 }
@@ -116,7 +133,7 @@ func (self *kite) Start() {
 
 	//构造pipeline的结构
 	pipeline := turbo.NewDefaultPipeline()
-	ackHandler := NewAckHandler("ack", 10*time.Second, 5*time.Second, self.clientManager)
+	ackHandler := NewAckHandler("ack", self.clientManager)
 	accept := NewAcceptHandler("accept", self.listener)
 	remoting := turbo.NewRemotingHandler("remoting", self.clientManager)
 
@@ -178,8 +195,14 @@ outter:
 		self.onQServerChanged(topic, hosts)
 	}
 
-	if len(self.kiteClients) <= 0 {
-		log.Crashf("kite|Start|NO VALID KITESERVER|%s\n", self.topics)
+	length := 0
+	self.topicToAddress.Range(func(key, value interface{}) bool {
+		length++
+		return true
+	})
+
+	if length <= 0 {
+		log.CriticalLog("stderr", "kite|Start|NO VALID KITESERVER|%s", self.topics)
 	}
 
 	if len(self.binds) > 0 {
@@ -192,7 +215,7 @@ outter:
 
 	//开启流量统计
 	self.remointflow()
-	go ackHandler.heartbeat()
+	go self.heartbeat()
 	go self.poolMonitor()
 
 }
@@ -313,7 +336,7 @@ func (self *kite) SendTxMessage(msg *protocol.QMessage, doTranscation DoTransact
 	}
 
 	//先发送消息
-	err = c.sendMessage(msg)
+	err = sendMessage(c, msg)
 	if nil != err {
 		return err
 	}
@@ -333,7 +356,7 @@ func (self *kite) SendTxMessage(msg *protocol.QMessage, doTranscation DoTransact
 		}
 	}
 	//发送txack到服务端
-	c.sendTxAck(msg, txstatus, feedback)
+	sendTxAck(c, msg, txstatus, feedback)
 	return err
 }
 
@@ -346,27 +369,95 @@ func (self *kite) SendMessage(msg *protocol.QMessage) error {
 	if nil != err {
 		return err
 	}
-	return c.sendMessage(msg)
+	return sendMessage(c, msg)
 }
 
 //kiteclient路由选择策略
-func (self *kite) selectKiteClient(header *protocol.Header) (*kiteIO, error) {
-
-	self.lock.RLock()
-	defer self.lock.RUnlock()
-
-	clients, ok := self.kiteClients[header.GetTopic()]
-	if !ok || len(clients) <= 0 {
+func (self *kite) selectKiteClient(header *protocol.Header) (*turbo.TClient, error) {
+	v, ok := self.topicToAddress.Load(header.GetTopic())
+	if !ok || nil == v {
 		// 	log.WarnLog("kite","kite|selectKiteClient|FAIL|NO Remote Client|%s\n", header.GetTopic())
 		return nil, errors.New("NO KITE CLIENT ! [" + header.GetTopic() + "]")
 	}
-	for i := 0; i < 3; i++ {
-		c := clients[rand.Intn(len(clients))]
-		if !c.client.IsClosed() {
-			return c, nil
+
+	addresses, ok := v.([]string)
+	if !ok || len(addresses) <= 0 {
+		return nil, errors.New("NO KITE CLIENT ! [" + header.GetTopic() + "]")
+	}
+
+	aliveTClients := addressPool.Get()
+	for _, addr := range addresses {
+		if v, ok := self.addressToTClient.Load(addr); ok && nil != v {
+			if futureTask, ok := v.(*FutureTask); ok {
+				if v, err := futureTask.Get(); nil == err && nil != v {
+					if c, ok := v.(*turbo.TClient); ok && !c.IsClosed() {
+						aliveTClients = append(aliveTClients.([]*turbo.TClient), c)
+					}
+				}
+			}
 		}
 	}
-	return nil, errors.New("NO Alive KITE CLIENT ! [" + header.GetTopic() + "]")
+
+	//随机选取节点
+	randomTClients := aliveTClients.([]*turbo.TClient)
+	if len(randomTClients) > 0 {
+		source := rand.NewSource(time.Now().UnixNano())
+		rand := rand.New(source)
+		c := randomTClients[rand.Intn(len(randomTClients))]
+		addressPool.Put(randomTClients[:0])
+		return c, nil
+	} else {
+		addressPool.Put(randomTClients[:0])
+		return nil, errors.New("NO Alive KITE CLIENT ! [" + header.GetTopic() + "]")
+	}
+}
+
+func (self *kite) heartbeat() {
+
+	for {
+		select {
+		case <-time.After(self.heartbeatPeriod):
+			//心跳检测
+			self.addressToTClient.Range(func(key, value interface{}) bool {
+				i := 0
+				future := value.(*FutureTask)
+				if v, err := future.Get(); nil == err && nil != v {
+					c := v.(*turbo.TClient)
+					//关闭的时候发起重连
+					if c.IsClosed() {
+						i = 3
+					} else {
+						//如果是空闲的则发起心跳
+						if c.Idle() {
+							for ; i < 3; i++ {
+								id := time.Now().Unix()
+								p := protocol.MarshalHeartbeatPacket(id)
+								hp := turbo.NewPacket(protocol.CMD_HEARTBEAT, p)
+								err := c.Ping(hp, time.Duration(self.heartbeatTimeout))
+								//如果有错误则需要记录
+								if nil != err {
+									log.WarnLog("kite", "AckHandler|KeepAlive|FAIL|%s|local:%s|remote:%s|%d\n", err, c.LocalAddr(), key, id)
+									continue
+								} else {
+									log.InfoLog("kite", "AckHandler|KeepAlive|SUCC|local:%s|remote:%s|%d|%d ...\n", c.LocalAddr(), key, id, i)
+									break
+								}
+							}
+						}
+					}
+					if i >= 3 {
+						//说明连接有问题需要重连
+						c.Shutdown()
+						self.clientManager.SubmitReconnect(c)
+						log.WarnLog("kite", "AckHandler|SubmitReconnect|%s", c.RemoteAddr())
+					}
+				}
+				return true
+			})
+		case <-self.ctx.Done():
+			return
+		}
+	}
 }
 
 func (self *kite) Destroy() {

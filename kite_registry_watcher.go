@@ -1,13 +1,13 @@
 package client
 
 import (
-	"strings"
-
-	"github.com/blackbeans/kiteq-common/registry"
-
+	"context"
+	"errors"
 	"github.com/blackbeans/kiteq-common/protocol"
+	"github.com/blackbeans/kiteq-common/registry"
 	log "github.com/blackbeans/log4go"
 	"github.com/blackbeans/turbo"
+	"strings"
 )
 
 func (self *kite) NodeChange(path string, eventType registry.RegistryEvent, children []string) {
@@ -36,66 +36,91 @@ func (self *kite) NodeChange(path string, eventType registry.RegistryEvent, chil
 
 //当触发QServer地址发生变更
 func (self *kite) onQServerChanged(topic string, hosts []string) {
-	self.lock.Lock()
-	defer self.lock.Unlock()
 	//重建一下topic下的kiteclient
-	clients := make([]*kiteIO, 0, 10)
+	addresses := make([]string, 0, 10)
 	for _, host := range hosts {
 		//如果能查到remoteClient 则直接复用
-		remoteClient := self.clientManager.FindTClient(host)
-		if nil == remoteClient {
-			//这里就新建一个remote客户端连接
-			conn, err := dial(host)
-			if nil != err {
-				log.ErrorLog("kite", "kite|onQServerChanged|Create REMOTE CLIENT|FAIL|%s|%s", err, host)
-				continue
-			}
-			remoteClient = turbo.NewTClient(self.ctx, conn, func() turbo.ICodec {
-				return protocol.KiteQBytesCodec{
-					MaxFrameLength: turbo.MAX_PACKET_BYTES}
-			}, self.fire, self.config)
-			remoteClient.Start()
-			auth, err := handshake(self.ga, remoteClient)
-			if !auth || nil != err {
-				remoteClient.Shutdown()
-				log.ErrorLog("kite", "kite|onQServerChanged|HANDSHAKE|FAIL|%s|%s", err, auth)
-				continue
-			}
-			self.clientManager.Auth(self.ga, remoteClient)
-		} else if remoteClient.IsClosed() {
-			//如果当前是关闭的状态，那么就会自动重连，不需要创建新的连接
-			log.InfoLog("kite", "kite|onQServerChanged|Closed|Wait Reconnect|%s|%s", topic, hosts)
-		}
+		newHost := host
+		newFutureTask := NewFutureTask(func(ctx context.Context) (interface{}, error) {
+			return self.onTClientInit(newHost)
+		})
+		_, loaded := self.addressToTClient.LoadOrStore(host, newFutureTask)
 
-		//创建kiteClient
-		kiteClient := newKiteIO(remoteClient)
-		clients = append(clients, kiteClient)
+		//不存在这个任务，那么使用的是创建的这个任务
+		if !loaded {
+			//执行运行一下
+			newFutureTask.Run(self.ctx)
+		}
+		addresses = append(addresses, host)
 	}
 
 	log.InfoLog("kite", "kite|onQServerChanged|SUCC|%s|%s", topic, hosts)
 
 	//替换掉线的server
-	old, ok := self.kiteClients[topic]
-	self.kiteClients[topic] = clients
-	if ok {
-		del := make([]string, 0, 2)
-	outter:
-		for _, o := range old {
-			//决定删除的时候必须把所有的当前对应的client遍历一遍不然会删除掉
-			for _, clients := range self.kiteClients {
-				for _, c := range clients {
-					if c.client.RemoteAddr() == o.client.RemoteAddr() {
-						continue outter
-					}
-				}
-			}
-			del = append(del, o.client.RemoteAddr())
-		}
-		//需要删掉已经废弃的连接
-		if len(del) > 0 {
-			self.clientManager.DeleteClients(del...)
-		}
+	_, loaded := self.topicToAddress.LoadOrStore(topic, addresses)
+	if loaded {
+		//放入新的地址列表
+		self.topicToAddress.Store(topic, addresses)
+	} else {
+		//说明没有旧的
 	}
+
+	//目前使用的链接地址
+	usingAddr := make(map[string]interface{}, 10)
+	self.topicToAddress.Range(func(key, value interface{}) bool {
+		for _, addr := range value.([]string) {
+			usingAddr[addr] = nil
+		}
+		return true
+	})
+
+	dels := make([]string, 0, 2)
+	self.addressToTClient.Range(func(key, value interface{}) bool {
+		//如果所有的topic都不再使用这个kiteio地址，那么则进行移除
+		if _, ok := usingAddr[key.(string)]; !ok {
+			dels = append(dels, key.(string))
+		}
+		return true
+	})
+
+	//需要删掉已经废弃的连接
+	if len(dels) > 0 {
+		for _, del := range dels {
+			self.addressToTClient.Delete(del)
+			self.clientManager.DeleteClients(del)
+		}
+
+		log.InfoLog("kite", "kite|onQServerChanged.RemoveUnusedAddr|%s|%s", topic, dels)
+	}
+}
+
+//创建kiteio
+func (self *kite) onTClientInit(host string) (*turbo.TClient, error) {
+
+	//优先从clientmanager中获取，不存在则创建开启
+	remoteClient := self.clientManager.FindTClient(host)
+	if nil == remoteClient {
+		//这里就新建一个remote客户端连接
+		conn, err := dial(host)
+		if nil != err {
+			log.ErrorLog("kite", "kite|onTClientInit|Create REMOTE CLIENT|FAIL|%s|%s", err, host)
+			return nil, err
+		}
+		remoteClient = turbo.NewTClient(self.ctx, conn, func() turbo.ICodec {
+			return protocol.KiteQBytesCodec{
+				MaxFrameLength: turbo.MAX_PACKET_BYTES}
+		}, self.fire, self.config)
+		remoteClient.Start()
+		auth, err := handshake(self.ga, remoteClient)
+		if !auth || nil != err {
+			remoteClient.Shutdown()
+			log.ErrorLog("kite", "kite|onTClientInit|HANDSHAKE|FAIL|%s|%s", err, auth)
+			return nil, errors.New("onTClientInit FAIL ")
+		}
+		//授权
+		self.clientManager.Auth(self.ga, remoteClient)
+	}
+	return remoteClient, nil
 }
 
 func (self *kite) DataChange(path string, binds []*registry.Binding) {
