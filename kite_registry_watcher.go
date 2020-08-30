@@ -41,7 +41,7 @@ func (self *kite) onQServerChanged(topic string, hosts []string) {
 	for _, host := range hosts {
 		//如果能查到remoteClient 则直接复用
 		newHost := host
-		newFutureTask := NewFutureTask(func(ctx context.Context) (interface{}, error) {
+		newFutureTask := turbo.NewFutureTask(func(ctx context.Context) (interface{}, error) {
 			return self.onTClientInit(newHost)
 		})
 		_, loaded := self.addressToTClient.LoadOrStore(host, newFutureTask)

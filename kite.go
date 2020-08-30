@@ -388,7 +388,7 @@ func (self *kite) selectKiteClient(header *protocol.Header) (*turbo.TClient, err
 	aliveTClients := addressPool.Get()
 	for _, addr := range addresses {
 		if v, ok := self.addressToTClient.Load(addr); ok && nil != v {
-			if futureTask, ok := v.(*FutureTask); ok {
+			if futureTask, ok := v.(*turbo.FutureTask); ok {
 				if v, err := futureTask.Get(); nil == err && nil != v {
 					if c, ok := v.(*turbo.TClient); ok && !c.IsClosed() {
 						aliveTClients = append(aliveTClients.([]*turbo.TClient), c)
@@ -420,7 +420,7 @@ func (self *kite) heartbeat() {
 			//心跳检测
 			self.addressToTClient.Range(func(key, value interface{}) bool {
 				i := 0
-				future := value.(*FutureTask)
+				future := value.(*turbo.FutureTask)
 				if v, err := future.Get(); nil == err && nil != v {
 					c := v.(*turbo.TClient)
 					//关闭的时候发起重连

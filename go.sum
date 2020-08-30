@@ -33,6 +33,8 @@ github.com/blackbeans/turbo v0.0.0-20200829094942-946b9ec038b4 h1:BL4dfG4g7X2LuB
 github.com/blackbeans/turbo v0.0.0-20200829094942-946b9ec038b4/go.mod h1:d8ZVF8h7ZBnUvQXUwRGlXLXJmNNyIWi8TNDxvzJ5CX4=
 github.com/blackbeans/turbo v0.0.0-20200829101315-14f70b1cf838 h1:7weoZ/kqS7gVYjBECIUFb7NNWE9L7dkjPg/H2MAFeUA=
 github.com/blackbeans/turbo v0.0.0-20200829101315-14f70b1cf838/go.mod h1:d8ZVF8h7ZBnUvQXUwRGlXLXJmNNyIWi8TNDxvzJ5CX4=
+github.com/blackbeans/turbo v0.0.0-20200830050831-d218aacd4f23 h1:aOxcksOfaWliym+ShLP9xv0bmIKkfcWMfQpbNaApXc4=
+github.com/blackbeans/turbo v0.0.0-20200830050831-d218aacd4f23/go.mod h1:d8ZVF8h7ZBnUvQXUwRGlXLXJmNNyIWi8TNDxvzJ5CX4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
