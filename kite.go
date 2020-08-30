@@ -49,7 +49,6 @@ type kite struct {
 
 	registryCenter *registry.RegistryCenter
 	pipeline       *turbo.DefaultPipeline
-	lock           sync.RWMutex
 	config         *turbo.TConfig
 	flowstat       *stat.FlowStat
 	ctx            context.Context
