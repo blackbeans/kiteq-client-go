@@ -37,6 +37,10 @@ func NewKiteQClientWithWarmup(zkAddr, groupId, secretKey string, warmingupSec in
 		k: newKite(zkAddr, groupId, secretKey, warmingupSec, NewKiteQListener())}
 }
 
+func (self *KiteQClient) SetPreEnv(isPre bool) {
+	self.k.isPreEnv = isPre
+}
+
 func (self *KiteQClient) SetTopics(topics []string) {
 	if !self.mockModel {
 		self.k.SetPublishTopics(topics)

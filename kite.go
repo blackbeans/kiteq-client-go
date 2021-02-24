@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime"
@@ -37,6 +38,7 @@ func init() {
 type DoTransaction func(message *protocol.QMessage) (bool, error)
 
 type kite struct {
+	isPreEnv      bool //是否为预发部环境的client
 	ga            *turbo.GroupAuth
 	registryUri   string
 	topics        []string
@@ -125,6 +127,11 @@ func (self *kite) Start() {
 		panic("KiteClient Listener Not Set !")
 	}
 
+	//如果是预发环境，则加入预发环境的group后缀
+	if self.isPreEnv {
+		self.ga.GroupId = fmt.Sprintf("%s-pre", self.ga.GroupId)
+	}
+
 	//重连管理器
 	reconnManager := turbo.NewReconnectManager(true, 30*time.Second,
 		100, handshake)
@@ -168,9 +175,9 @@ func (self *kite) Start() {
 	//推送本机到
 	err := self.registryCenter.PublishTopics(self.topics, self.ga.GroupId, hostname)
 	if nil != err {
-		log.Crashf("kite|PublishTopics|FAIL|%s|%s\n", err, self.topics)
+		log.Crashf("kite|PublishTopics|FAIL|%s|%s", err, self.topics)
 	} else {
-		log.InfoLog("kite", "kite|PublishTopics|SUCC|%s\n", self.topics)
+		log.InfoLog("kite", "kite|PublishTopics|SUCC|%s", self.topics)
 	}
 
 outter:
@@ -187,9 +194,9 @@ outter:
 
 		hosts, err := self.registryCenter.GetQServerAndWatch(topic)
 		if nil != err {
-			log.Crashf("kite|GetQServerAndWatch|FAIL|%s|%s\n", err, topic)
+			log.Crashf("kite|GetQServerAndWatch|FAIL|%s|%s", err, topic)
 		} else {
-			log.InfoLog("kite", "kite|GetQServerAndWatch|SUCC|%s|%s\n", topic, hosts)
+			log.InfoLog("kite", "kite|GetQServerAndWatch|SUCC|%s|%s", topic, hosts)
 		}
 		self.onQServerChanged(topic, hosts)
 	}
@@ -204,12 +211,17 @@ outter:
 		log.CriticalLog("stderr", "kite|Start|NO VALID KITESERVER|%s", self.topics)
 	}
 
-	if len(self.binds) > 0 {
+	if !self.isPreEnv && len(self.binds) > 0 {
 		//订阅关系推送，并拉取QServer
 		err = self.registryCenter.PublishBindings(self.ga.GroupId, self.binds)
 		if nil != err {
-			log.Crashf("kite|PublishBindings|FAIL|%s|%s\n", err, self.binds)
+			log.Crashf("kite|PublishBindings|FAIL|%s|%s", err, self.binds)
 		}
+	}
+
+	if self.isPreEnv {
+		rawBinds, _ := json.Marshal(self.binds)
+		log.InfoLog("kite", "kite|PublishBindings|Ignored|[preEnv:%v]|%s...", self.isPreEnv, string(rawBinds))
 	}
 
 	//开启流量统计
