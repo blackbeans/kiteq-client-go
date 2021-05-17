@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/blackbeans/kiteq-common/protocol"
 
@@ -56,15 +55,15 @@ func (self *UnmarshalHandler) Process(ctx *turbo.DefaultPipelineContext, event t
 	}
 
 	if p, ok := self.pools[pevent.Packet.Header.CmdType]; ok {
-		p.Queue(func(tx context.Context) (interface{}, error) {
+		p.Queue(context.TODO(), func(tx context.Context) (interface{}, error) {
 			ctx.SendForward(cevent)
 			return nil, nil
-		}, 10*time.Millisecond)
+		})
 	} else {
-		self.defaultPool.Queue(func(tx context.Context) (interface{}, error) {
+		self.defaultPool.Queue(context.TODO(), func(tx context.Context) (interface{}, error) {
 			ctx.SendForward(cevent)
 			return nil, nil
-		}, 10*time.Millisecond)
+		})
 	}
 
 	return nil

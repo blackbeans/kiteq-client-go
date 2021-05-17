@@ -144,10 +144,10 @@ func (self *kite) Start() {
 	remoting := turbo.NewRemotingHandler("remoting", self.clientManager)
 
 	//对于ack和acceptevent使用不同的线程池，优先级不同
-	msgPool := turbo.NewLimitPool(self.ctx, self.config.TW, 50)
-	ackPool := turbo.NewLimitPool(self.ctx, self.config.TW, 5)
-	storeAckPool := turbo.NewLimitPool(self.ctx, self.config.TW, 5)
-	defaultPool := turbo.NewLimitPool(self.ctx, self.config.TW, 5)
+	msgPool := turbo.NewLimitPool(self.ctx, 50)
+	ackPool := turbo.NewLimitPool(self.ctx, 5)
+	storeAckPool := turbo.NewLimitPool(self.ctx, 5)
+	defaultPool := turbo.NewLimitPool(self.ctx, 5)
 
 	//pools
 	pools := make(map[uint8]*turbo.GPool)
