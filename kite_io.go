@@ -78,9 +78,9 @@ func innerSendMessage(tclient *turbo.TClient, cmdType uint8, p []byte, timeout t
 		} else {
 			storeAck, ok := resp.(*protocol.MessageStoreAck)
 			if !ok || !storeAck.GetStatus() {
-				return errors.New(fmt.Sprintf("kiteIO|SendMessage|FAIL|%s\n", resp))
+				return errors.New(fmt.Sprintf("kiteIO|SendMessage|FAIL|%s", resp))
 			} else {
-				//log.DebugLog("kite","kiteIO|SendMessage|SUCC|%s|%s\n", storeAck.GetMessageId(), storeAck.GetFeedback())
+				//log.DebugLog("kite","kiteIO|SendMessage|SUCC|%s|%s", storeAck.GetMessageId(), storeAck.GetFeedback())
 				return nil
 			}
 		}

@@ -7,8 +7,8 @@ import (
 	"github.com/blackbeans/kiteq-client-go"
 	"github.com/blackbeans/kiteq-client-go/benchmark/listener"
 	"github.com/blackbeans/kiteq-common/protocol"
-	log "github.com/blackbeans/log4go"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
@@ -71,7 +71,6 @@ func buildStringMessage(commit bool) *protocol.StringMessage {
 }
 
 func main() {
-	logxml := flag.String("logxml", "../log_producer.xml", "-logxml=../log_producer.xml")
 	k := flag.Int("k", 1, "-k=1  //kiteclient num ")
 	c := flag.Int("c", 1, "-c=100")
 	tx := flag.Bool("tx", false, "-tx=true send Tx Message")
@@ -79,8 +78,6 @@ func main() {
 	flag.Parse()
 
 	runtime.GOMAXPROCS(8)
-
-	log.LoadConfiguration(*logxml)
 
 	go func() {
 
@@ -100,7 +97,7 @@ func main() {
 			ftmp := fc
 
 			time.Sleep(1 * time.Second)
-			fmt.Printf("tps:%d/%d\n", (tmp - lc), (ftmp - flc))
+			fmt.Printf("tps:%d/%d", (tmp - lc), (ftmp - flc))
 			lc = tmp
 			flc = ftmp
 		}
@@ -117,7 +114,7 @@ func main() {
 		kiteClient.Start()
 		clients = append(clients, kiteClient)
 		time.Sleep(3 * time.Second)
-		fmt.Printf("Open Client %d\n", j)
+		fmt.Printf("Open Client %d", j)
 		for i := 0; i < *c; i++ {
 			go func(kite *client.KiteQClient) {
 				wg.Add(1)
@@ -126,7 +123,7 @@ func main() {
 						msg := buildBytesMessage(false)
 						err := kite.SendTxBytesMessage(msg, doTranscation)
 						if nil != err {
-							fmt.Printf("SEND TxMESSAGE |FAIL|%s\n", err)
+							fmt.Printf("SEND TxMESSAGE |FAIL|%s", err)
 							atomic.AddInt32(&fc, 1)
 						} else {
 							atomic.AddInt32(&count, 1)
@@ -135,7 +132,7 @@ func main() {
 						txmsg := buildBytesMessage(true)
 						err := kite.SendBytesMessage(txmsg)
 						if nil != err {
-							fmt.Printf("SEND MESSAGE |FAIL|%s\n", err)
+							fmt.Printf("SEND MESSAGE |FAIL|%s", err)
 							atomic.AddInt32(&fc, 1)
 						} else {
 							atomic.AddInt32(&count, 1)
@@ -172,7 +169,7 @@ func main() {
 		wg.Wait()
 
 		for _, k := range clients {
-			k.Destory()
+			k.Destroy()
 		}
 	}
 }

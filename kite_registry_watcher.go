@@ -5,8 +5,8 @@ import (
 	"errors"
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/blackbeans/kiteq-common/registry"
-	log "github.com/blackbeans/log4go"
 	"github.com/blackbeans/turbo"
+	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
@@ -18,12 +18,12 @@ func (self *kite) NodeChange(path string, eventType registry.RegistryEvent, chil
 		split := strings.Split(path, "/")
 		if len(split) < 4 {
 			//不合法的订阅璐姐
-			log.WarnLog("kite", "kite|ChildWatcher|INVALID SERVER PATH |%s|%t", path, children)
+			log.Warnf("kite|ChildWatcher|INVALID SERVER PATH |%s|%v", path, children)
 			return
 		}
 		//获取topic
 		topic := split[3]
-		log.WarnLog("kite", "kite|ChildWatcher|Change|%s|%v|%+v", path, children, eventType)
+		log.Warnf("kite|ChildWatcher|Change|%s|%v|%v", path, children, eventType)
 		//search topic
 		for _, t := range self.topics {
 			if t == topic {
@@ -41,7 +41,7 @@ func (self *kite) onQServerChanged(topic string, hosts []string) {
 	for _, host := range hosts {
 		//如果能查到remoteClient 则直接复用
 		newHost := host
-		newFutureTask := turbo.NewFutureTask(func(ctx context.Context) (interface{}, error) {
+		newFutureTask := turbo.NewFutureTask(self.ctx, func(ctx context.Context) (interface{}, error) {
 			return self.onTClientInit(newHost)
 		})
 		_, loaded := self.addressToTClient.LoadOrStore(host, newFutureTask)
@@ -49,12 +49,12 @@ func (self *kite) onQServerChanged(topic string, hosts []string) {
 		//不存在这个任务，那么使用的是创建的这个任务
 		if !loaded {
 			//执行运行一下
-			newFutureTask.Run(self.ctx)
+			newFutureTask.Run()
 		}
 		addresses = append(addresses, host)
 	}
 
-	log.InfoLog("kite", "kite|onQServerChanged|SUCC|%s|%s", topic, hosts)
+	log.Infof("kite|onQServerChanged|SUCC|%s|%s", topic, hosts)
 
 	//替换掉线的server
 	_, loaded := self.topicToAddress.LoadOrStore(topic, addresses)
@@ -90,7 +90,7 @@ func (self *kite) onQServerChanged(topic string, hosts []string) {
 			self.clientManager.DeleteClients(del)
 		}
 
-		log.InfoLog("kite", "kite|onQServerChanged.RemoveUnusedAddr|%s|%s", topic, dels)
+		log.Infof("kite|onQServerChanged.RemoveUnusedAddr|%s|%s", topic, dels)
 	}
 }
 
@@ -103,7 +103,7 @@ func (self *kite) onTClientInit(host string) (*turbo.TClient, error) {
 		//这里就新建一个remote客户端连接
 		conn, err := dial(host)
 		if nil != err {
-			log.ErrorLog("kite", "kite|onTClientInit|Create REMOTE CLIENT|FAIL|%s|%s", err, host)
+			log.Errorf("kite|onTClientInit|Create REMOTE CLIENT|FAIL|%s|%s", err, host)
 			return nil, err
 		}
 		remoteClient = turbo.NewTClient(self.ctx, conn, func() turbo.ICodec {
@@ -114,7 +114,7 @@ func (self *kite) onTClientInit(host string) (*turbo.TClient, error) {
 		auth, err := handshake(self.ga, remoteClient)
 		if !auth || nil != err {
 			remoteClient.Shutdown()
-			log.ErrorLog("kite", "kite|onTClientInit|HANDSHAKE|FAIL|%s|%s", err, auth)
+			log.Errorf("kite|onTClientInit|HANDSHAKE|FAIL|%s|%s", err, auth)
 			return nil, errors.New("onTClientInit FAIL ")
 		}
 		//授权
@@ -125,12 +125,12 @@ func (self *kite) onTClientInit(host string) (*turbo.TClient, error) {
 
 func (self *kite) DataChange(path string, binds []*registry.Binding) {
 	//IGNORE
-	log.InfoLog("kite", "kite|DataChange|%s|%s", path, binds)
+	log.Infof("kite|DataChange|%s|%s", path, binds)
 }
 
 func (self *kite) OnSessionExpired() {
 	//推送订阅关系和topics
 	self.Start()
 
-	log.InfoLog("kite", "kite|OnSessionExpired|Restart...")
+	log.Infof("kite|OnSessionExpired|Restart...")
 }

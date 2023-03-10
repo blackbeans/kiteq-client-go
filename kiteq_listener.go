@@ -3,7 +3,7 @@ package client
 import (
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/blackbeans/kiteq-common/registry"
-	"github.com/blackbeans/log4go"
+	log "github.com/sirupsen/logrus"
 )
 
 //
@@ -74,7 +74,7 @@ func (self *KiteQListener) onFire(ctx *Context) error {
 			if bind.Matches(topic, messageType) {
 				ctx.Success, ctx.Err = bind.Handler(msg.GetBody())
 				if nil != ctx.Err || !ctx.Success {
-					log4go.ErrorLog("kite", "OnMessage|Handle|FAIL|%s|%s|%s|%s|%v",
+					log.Errorf("OnMessage|Handle|FAIL|%s|%s|%s|%s|%v",
 						msg.GetHeader().GetMessageId(),
 						msg.GetHeader().GetTopic(),
 						msg.GetHeader().GetMessageType(),
@@ -85,7 +85,7 @@ func (self *KiteQListener) onFire(ctx *Context) error {
 			}
 		}
 		//不存在这样的消息处理器
-		log4go.WarnLog("kite", "OnMessage|Handle|FAIL|NO Handler|%s|%s|%s|%s",
+		log.Warnf("OnMessage|Handle|FAIL|NO Handler|%s|%s|%s|%s",
 			msg.GetHeader().GetMessageId(),
 			msg.GetHeader().GetTopic(),
 			msg.GetHeader().GetMessageType(),
@@ -114,7 +114,7 @@ func (self *KiteQListener) OnMessage(msg *protocol.QMessage) bool {
 	}
 
 	if nil != ctx.Err || !ctx.Success {
-		log4go.ErrorLog("kite", "OnMessage|Handle|FAIL|%s|%s|%s|%s|%v",
+		log.Errorf("OnMessage|Handle|FAIL|%s|%s|%s|%s|%v",
 			msg.GetHeader().GetMessageId(),
 			msg.GetHeader().GetTopic(),
 			msg.GetHeader().GetMessageType(),

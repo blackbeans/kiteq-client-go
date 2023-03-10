@@ -15,17 +15,15 @@ import (
 	"time"
 
 	"github.com/blackbeans/kiteq-client-go/benchmark/listener"
-	log "github.com/blackbeans/log4go"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	logxml := flag.String("logxml", "../log_consumer.xml", "-logxml=../log_consumer.xml")
 	zkhost := flag.String("registryUri", "etcd://http://localhost:2379", "-registryUri=etcd://http://localhost:2379")
 	warmingUp := flag.Int("warmingUp", 10, "-warmingUp=10")
 	flag.Parse()
 	runtime.GOMAXPROCS(8)
 
-	log.LoadConfiguration(*logxml)
 	go func() {
 
 		log.Info(http.ListenAndServe(":38000", nil))
@@ -60,5 +58,5 @@ func main() {
 			}
 		}
 	}
-	kite.Destory()
+	kite.Destroy()
 }

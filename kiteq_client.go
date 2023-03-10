@@ -86,7 +86,7 @@ func (self *KiteQClient) SendBytesMessage(msg *protocol.BytesMessage) error {
 	return self.k.SendMessage(message)
 }
 
-func (self *KiteQClient) Destory() {
+func (self *KiteQClient) Destroy() {
 	if self.mockModel {
 		return
 	}

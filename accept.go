@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/blackbeans/log4go"
+	log "github.com/sirupsen/logrus"
 	"runtime/debug"
 
 	"github.com/blackbeans/kiteq-common/protocol"
@@ -55,7 +55,7 @@ func (self *AcceptHandler) cast(event turbo.IEvent) (val *acceptEvent, ok bool) 
 var INVALID_MSG_TYPE_ERROR = errors.New("INVALID MSG TYPE !")
 
 func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turbo.IEvent) error {
-	// log.DebugLog("kite","AcceptHandler|Process|%s|%t\n", self.GetName(), event)
+	// log.DebugLog("kite","AcceptHandler|Process|%s|%t", self.GetName(), event)
 
 	acceptEvent, ok := self.cast(event)
 	if !ok {
@@ -66,7 +66,7 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 	case protocol.CMD_TX_ACK:
 
 		//回调事务完成的监听器
-		// log.DebugLog("kite","AcceptHandler|Check Message|%t\n", acceptEvent.Msg)
+		// log.DebugLog("kite","AcceptHandler|Check Message|%t", acceptEvent.Msg)
 		txPacket := acceptEvent.msg.(*protocol.TxACKPacket)
 		header := txPacket.GetHeader()
 		tx := protocol.NewTxResponse(header)
@@ -85,11 +85,11 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 		//发送提交结果确认的Packet
 		remotingEvent := turbo.NewRemotingEvent(txResp, []string{acceptEvent.remoteClient.RemoteAddr()})
 		ctx.SendForward(remotingEvent)
-		// log.DebugLog("kite","AcceptHandler|Recieve TXMessage|%t\n", acceptEvent.Msg)
+		// log.DebugLog("kite","AcceptHandler|Recieve TXMessage|%t", acceptEvent.Msg)
 
 	case protocol.CMD_STRING_MESSAGE, protocol.CMD_BYTES_MESSAGE:
 		//这里应该回调消息监听器然后发送处理结果
-		//log.DebugLog("kite","AcceptHandler|Recieve Message|%t\n", acceptEvent.Msg)
+		//log.DebugLog("kite","AcceptHandler|Recieve Message|%t", acceptEvent.Msg)
 
 		message := protocol.NewQMessage(acceptEvent.msg)
 
@@ -100,7 +100,7 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 
 				data, err := Decompress(message.GetBody().([]byte))
 				if nil != err {
-					log4go.ErrorLog("kite", "AcceptHandler|CMD_BYTES_MESSAGE|Body Decompress|FAIL|%s|%s", err, string(message.GetBody().([]byte)))
+					log.Errorf("AcceptHandler|CMD_BYTES_MESSAGE|Body Decompress|FAIL|%s|%s", err, string(message.GetBody().([]byte)))
 					//如果解压失败那么采用不解压
 					data = message.GetBody().([]byte)
 				}
@@ -112,7 +112,7 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 				}
 				data, err = Decompress(data)
 				if nil != err {
-					log4go.ErrorLog("kite", "AcceptHandler|CMD_STRING_MESSAGE|Body Decompress|FAIL|%s|%s", err, string(message.GetBody().([]byte)))
+					log.Errorf("AcceptHandler|CMD_STRING_MESSAGE|Body Decompress|FAIL|%s|%s", err, string(message.GetBody().([]byte)))
 					//如果解压失败那么采用不解压
 					data = message.GetBody().([]byte)
 				}
@@ -126,7 +126,7 @@ func (self *AcceptHandler) Process(ctx *turbo.DefaultPipelineContext, event turb
 			defer func() {
 				if r := recover(); r != nil {
 					err = fmt.Errorf("%v", r)
-					log4go.ErrorLog("kite", "AcceptHandler|Recover|%v|%v", r, string(debug.Stack()))
+					log.Errorf("AcceptHandler|Recover|%v|%v", r, string(debug.Stack()))
 				}
 			}()
 			succ = self.listener.OnMessage(message)

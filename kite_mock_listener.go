@@ -3,21 +3,21 @@ package client
 import (
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/blackbeans/kiteq-common/registry"
-	log "github.com/blackbeans/log4go"
+	log "github.com/sirupsen/logrus"
 )
 
 type MockListener struct {
 }
 
 func (self *MockListener) OnMessage(msg *protocol.QMessage) bool {
-	log.DebugLog("kite", "MockListener|OnMessage", msg.GetHeader(), msg.GetBody())
+	log.Debugf("MockListener|OnMessage", msg.GetHeader(), msg.GetBody())
 	return true
 }
 
 func (self *MockListener) OnMessageCheck(tx *protocol.TxResponse) error {
-	log.Debug("MockListener|OnMessageCheck|%s\n", tx.MessageId)
+	log.Debug("MockListener|OnMessageCheck|%s", tx.MessageId)
 	v, _ := tx.GetProperty("tradeno")
-	log.DebugLog("kite", "MockListener|OnMessageCheck|PROP|%s\n", v)
+	log.Debugf("MockListener|OnMessageCheck|PROP|%s", v)
 	tx.Commit()
 	return nil
 }

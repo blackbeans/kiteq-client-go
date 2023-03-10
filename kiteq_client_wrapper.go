@@ -2,8 +2,8 @@ package client
 
 import (
 	"github.com/blackbeans/kiteq-common/protocol"
-	"github.com/blackbeans/log4go"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -36,7 +36,7 @@ func SendBytesMessage(kiteqClient *KiteQClient, body []byte, topic string, messa
 	err := kiteqClient.SendBytesMessage(BuildByteMessage(topic,
 		messageType, body, true))
 	if nil != err {
-		log4go.ErrorLog("kite", "SendBytesMessage|SendBytesMessage|FAIL|%v|msgType:%s", err, messageType)
+		log.Errorf("SendBytesMessage|SendBytesMessage|FAIL|%v|msgType:%s", err, messageType)
 		return false
 	}
 	return true

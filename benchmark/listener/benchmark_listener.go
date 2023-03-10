@@ -22,7 +22,7 @@ func (self *DefaultListener) Monitor() {
 		ftmp := self.lc
 
 		time.Sleep(1 * time.Second)
-		fmt.Printf("tps:%d\n", (tmp - ftmp))
+		fmt.Printf("tps:%d", (tmp - ftmp))
 		self.lc = tmp
 	}
 }

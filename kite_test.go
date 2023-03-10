@@ -50,15 +50,27 @@ type MockTestListener struct {
 	txc chan string
 }
 
+func (self *MockTestListener) RegisteHandler(bind *registry.Binding) IListener {
+	//TODO implement me
+	//panic("implement me")
+	return self
+}
+
+func (self *MockTestListener) AddMiddleWares(wares ...MiddleWare) IListener {
+	//TODO implement me
+	//panic("implement me")
+	return self
+}
+
 func (self *MockTestListener) OnMessage(msg *protocol.QMessage) bool {
-	fmt.Printf("MockTestListener|OnMessage|%+v|%s\n", msg.GetHeader(), msg.GetBody())
+	fmt.Printf("MockTestListener|OnMessage|%+v|%s", msg.GetHeader(), msg.GetBody())
 	self.rc <- msg.GetHeader().GetMessageId()
 
 	return true
 }
 
 func (self *MockTestListener) OnMessageCheck(tx *protocol.TxResponse) error {
-	fmt.Printf("MockTestListener|OnMessageCheck|%s\n", tx.MessageId)
+	fmt.Printf("MockTestListener|OnMessageCheck|%s", tx.MessageId)
 	self.txc <- tx.MessageId
 	tx.Commit()
 	return nil
@@ -71,9 +83,8 @@ var manager *kite
 func init() {
 
 	// 创建客户端
-	manager = newKite("zk://10.0.1.92:2181", "ps-trade-a", "123456", 5)
+	manager = newKite("zk://10.0.1.92:2181", "ps-trade-a", "123456", 5, &MockTestListener{rc: rc, txc: txc})
 	manager.SetPublishTopics([]string{"uneed-test"})
-	manager.SetListener(&MockTestListener{rc: rc, txc: txc})
 	// 设置接收类型
 	manager.SetBindings(
 		[]*registry.Binding{
@@ -98,9 +109,9 @@ func TestStringMessage(t *testing.T) {
 
 	select {
 	case mid := <-rc:
-		t.Logf("RECIEVE StringMESSAGE |SUCCESS|%s\n", mid)
+		t.Logf("RECIEVE StringMESSAGE |SUCCESS|%s", mid)
 	case <-time.After(10 * time.Second):
-		t.Logf("WAIT StringMESSAGE |TIMEOUT|%v\n", err)
+		t.Logf("WAIT StringMESSAGE |TIMEOUT|%v", err)
 		t.Fail()
 
 	}

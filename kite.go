@@ -18,8 +18,8 @@ import (
 	"github.com/blackbeans/kiteq-common/registry"
 
 	"github.com/blackbeans/kiteq-common/stat"
-	log "github.com/blackbeans/log4go"
 	"github.com/blackbeans/turbo"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -102,7 +102,7 @@ func (self *kite) remointflow() {
 		t := time.NewTicker(1 * time.Second)
 		for {
 			ns := self.config.FlowStat.Stat()
-			log.InfoLog("kite", "Remoting read:%d/%d\twrite:%d/%d\tdispatcher_go:%d/%d\tconnetions:%d", ns.ReadBytes, ns.ReadCount,
+			log.Infof("Remoting read:%d/%d\twrite:%d/%d\tdispatcher_go:%d/%d\tconnetions:%d", ns.ReadBytes, ns.ReadCount,
 				ns.WriteBytes, ns.WriteCount, ns.DisPoolSize, ns.DisPoolCap, self.clientManager.ConnNum())
 			<-t.C
 		}
@@ -175,9 +175,9 @@ func (self *kite) Start() {
 	//推送本机到
 	err := self.registryCenter.PublishTopics(self.topics, self.ga.GroupId, hostname)
 	if nil != err {
-		log.Crashf("kite|PublishTopics|FAIL|%s|%s", err, self.topics)
+		log.Errorf("kite|PublishTopics|FAIL|%s|%s", err, self.topics)
 	} else {
-		log.InfoLog("kite", "kite|PublishTopics|SUCC|%s", self.topics)
+		log.Infof("kite|PublishTopics|SUCC|%s", self.topics)
 	}
 
 outter:
@@ -194,9 +194,9 @@ outter:
 
 		hosts, err := self.registryCenter.GetQServerAndWatch(topic)
 		if nil != err {
-			log.Crashf("kite|GetQServerAndWatch|FAIL|%s|%s", err, topic)
+			log.Errorf("kite|GetQServerAndWatch|FAIL|%s|%s", err, topic)
 		} else {
-			log.InfoLog("kite", "kite|GetQServerAndWatch|SUCC|%s|%s", topic, hosts)
+			log.Infof("kite|GetQServerAndWatch|SUCC|%s|%s", topic, hosts)
 		}
 		self.onQServerChanged(topic, hosts)
 	}
@@ -208,20 +208,20 @@ outter:
 	})
 
 	if length <= 0 {
-		log.CriticalLog("stderr", "kite|Start|NO VALID KITESERVER|%s", self.topics)
+		log.Errorf("kite|Start|NO VALID KITESERVER|%s", self.topics)
 	}
 
 	if !self.isPreEnv && len(self.binds) > 0 {
 		//订阅关系推送，并拉取QServer
 		err = self.registryCenter.PublishBindings(self.ga.GroupId, self.binds)
 		if nil != err {
-			log.Crashf("kite|PublishBindings|FAIL|%s|%s", err, self.binds)
+			log.Errorf("kite|PublishBindings|FAIL|%s|%s", err, self.binds)
 		}
 	}
 
 	if self.isPreEnv {
 		rawBinds, _ := json.Marshal(self.binds)
-		log.InfoLog("kite", "kite|PublishBindings|Ignored|[preEnv:%v]|%s...", self.isPreEnv, string(rawBinds))
+		log.Infof("kite|PublishBindings|Ignored|[preEnv:%v]|%s...", self.isPreEnv, string(rawBinds))
 	}
 
 	//开启流量统计
@@ -255,7 +255,7 @@ func (self *kite) poolMonitor() {
 
 		used, capsize := self.defaultPool.Monitor()
 		str += fmt.Sprintf("default:%d/%d\t", used, capsize)
-		log.InfoLog("kite", str)
+		log.Infof(str)
 
 		time.Sleep(1 * time.Second)
 	}
@@ -268,7 +268,7 @@ func (self *kite) fire(ctx *turbo.TContext) error {
 	event := turbo.NewPacketEvent(c, p)
 	err := self.pipeline.FireWork(event)
 	if nil != err {
-		log.ErrorLog("kite", "kite|onPacketReceive|FAIL|%s|%t", err, p)
+		log.Errorf("kite|onPacketReceive|FAIL|%s|%t", err, p)
 		return err
 	}
 	return nil
@@ -279,12 +279,12 @@ func dial(hostport string) (*net.TCPConn, error) {
 	//连接
 	remoteAddr, err_r := net.ResolveTCPAddr("tcp4", hostport)
 	if nil != err_r {
-		log.ErrorLog("kite", "kite|RECONNECT|RESOLVE ADDR |FAIL|remote:%s\n", err_r)
+		log.Errorf("kite|RECONNECT|RESOLVE ADDR |FAIL|remote:%s", err_r)
 		return nil, err_r
 	}
 	conn, err := net.DialTCP("tcp4", nil, remoteAddr)
 	if nil != err {
-		log.ErrorLog("kite", "kite|RECONNECT|%s|FAIL|%s\n", hostport, err)
+		log.Errorf("kite|RECONNECT|%s|FAIL|%s", hostport, err)
 		return nil, err
 	}
 
@@ -301,17 +301,17 @@ func handshake(ga *turbo.GroupAuth, remoteClient *turbo.TClient) (bool, error) {
 		if nil != err {
 			//两秒后重试
 			time.Sleep(2 * time.Second)
-			log.WarnLog("kite", "kiteIO|handShake|FAIL|%s|%s\n", ga.GroupId, err)
+			log.Warnf("kiteIO|handShake|FAIL|%s|%s", ga.GroupId, err)
 		} else {
 			authAck, ok := resp.(*protocol.ConnAuthAck)
 			if !ok {
 				return false, errors.New("Unmatches Handshake Ack Type! ")
 			} else {
 				if authAck.GetStatus() {
-					log.InfoLog("kite", "kiteIO|handShake|SUCC|%s|%s\n", ga.GroupId, authAck.GetFeedback())
+					log.Infof("kiteIO|handShake|SUCC|%s|%s", ga.GroupId, authAck.GetFeedback())
 					return true, nil
 				} else {
-					log.WarnLog("kite", "kiteIO|handShake|FAIL|%s|%s\n", ga.GroupId, authAck.GetFeedback())
+					log.Warnf("kiteIO|handShake|FAIL|%s|%s", ga.GroupId, authAck.GetFeedback())
 					return false, errors.New("Auth FAIL![" + authAck.GetFeedback() + "]")
 				}
 			}
@@ -387,7 +387,7 @@ func (self *kite) SendMessage(msg *protocol.QMessage) error {
 func (self *kite) selectKiteClient(header *protocol.Header) (*turbo.TClient, error) {
 	v, ok := self.topicToAddress.Load(header.GetTopic())
 	if !ok || nil == v {
-		// 	log.WarnLog("kite","kite|selectKiteClient|FAIL|NO Remote Client|%s\n", header.GetTopic())
+		// 	log.WarnLog("kite","kite|selectKiteClient|FAIL|NO Remote Client|%s", header.GetTopic())
 		return nil, errors.New("NO KITE CLIENT ! [" + header.GetTopic() + "]")
 	}
 
@@ -447,10 +447,10 @@ func (self *kite) heartbeat() {
 								err := c.Ping(hp, time.Duration(self.heartbeatTimeout))
 								//如果有错误则需要记录
 								if nil != err {
-									log.WarnLog("kite", "AckHandler|KeepAlive|FAIL|%s|local:%s|remote:%s|%d\n", err, c.LocalAddr(), key, id)
+									log.Warnf("AckHandler|KeepAlive|FAIL|%s|local:%s|remote:%s|%d", err, c.LocalAddr(), key, id)
 									continue
 								} else {
-									log.InfoLog("kite", "AckHandler|KeepAlive|SUCC|local:%s|remote:%s|%d|%d ...\n", c.LocalAddr(), key, id, i)
+									log.Infof("AckHandler|KeepAlive|SUCC|local:%s|remote:%s|%d|%d ...", c.LocalAddr(), key, id, i)
 									break
 								}
 							}
@@ -460,7 +460,7 @@ func (self *kite) heartbeat() {
 						//说明连接有问题需要重连
 						c.Shutdown()
 						self.clientManager.SubmitReconnect(c)
-						log.WarnLog("kite", "AckHandler|SubmitReconnect|%s", c.RemoteAddr())
+						log.Warnf("AckHandler|SubmitReconnect|%s", c.RemoteAddr())
 					}
 				}
 				return true
