@@ -63,7 +63,7 @@ type kite struct {
 	heartbeatTimeout time.Duration
 }
 
-func newKite(registryUri, groupId, secretKey string, warmingupSec int, listener IListener) *kite {
+func newKite(parent context.Context, registryUri, groupId, secretKey string, warmingupSec int, listener IListener) *kite {
 
 	flowstat := stat.NewFlowStat()
 	config := turbo.NewTConfig(
@@ -73,11 +73,10 @@ func newKite(registryUri, groupId, secretKey string, warmingupSec int, listener 
 		10*time.Second,
 		50*10000)
 
-	registryCenter := registry.NewRegistryCenter(registryUri)
+	ctx, closed := context.WithCancel(parent)
+	registryCenter := registry.NewRegistryCenter(ctx, registryUri)
 	ga := turbo.NewGroupAuth(groupId, secretKey)
 	ga.WarmingupSec = warmingupSec
-
-	ctx, closed := context.WithCancel(context.Background())
 
 	manager := &kite{
 		ga:               ga,
@@ -170,7 +169,7 @@ func (self *kite) Start() {
 	pipeline.RegisteHandler("remoting", remoting)
 	self.pipeline = pipeline
 	//注册kiteqserver的变更
-	self.registryCenter.RegisteWatcher(PATH_KITEQ_SERVER, self)
+	self.registryCenter.RegisterWatcher(PATH_KITEQ_SERVER, self)
 	hostname, _ := os.Hostname()
 	//推送本机到
 	err := self.registryCenter.PublishTopics(self.topics, self.ga.GroupId, hostname)

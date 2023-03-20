@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"github.com/blackbeans/kiteq-client-go"
@@ -19,7 +20,7 @@ import (
 )
 
 func main() {
-	zkhost := flag.String("registryUri", "etcd://http://localhost:2379", "-registryUri=etcd://http://localhost:2379")
+	registryUrl := flag.String("registryUri", "zk://localhost:2181", "-registryUri=file://./registry_demo.yaml")
 	flag.Parse()
 	runtime.GOMAXPROCS(8)
 
@@ -31,10 +32,10 @@ func main() {
 	lis := &listener.DefaultListener{}
 	go lis.Monitor()
 
-	kite := client.NewKiteQClient(*zkhost, "s-mts-test1", "123456")
+	kite := client.NewKiteQClient(context.TODO(), *registryUrl, "s-mts-test1", "123456")
 	kite.SetBindings(
 		[]*registry.Binding{
-			registry.Bind_Direct("s-mts-test1", "user-profile", "pay-succ", 8000, true)})
+			registry.Bind_Direct("s-mts-test1", "user-profile", "profile-update", 8000, true)})
 	kite.SetListener(lis)
 	kite.Start()
 

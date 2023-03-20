@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/blackbeans/kiteq-common/registry"
 )
@@ -23,18 +24,18 @@ func (self *KiteQClient) GetListener() IListener {
 	return self.k.GetListener()
 }
 
-func NewKiteQClient(zkAddr, groupId, secretKey string) *KiteQClient {
-	return NewKiteQClientWithWarmup(zkAddr, groupId, secretKey, 0)
+func NewKiteQClient(parentCtx context.Context, zkAddr, groupId, secretKey string) *KiteQClient {
+	return NewKiteQClientWithWarmup(parentCtx, zkAddr, groupId, secretKey, 0)
 }
 
 //mock的kiteQClient
-func NewMockKiteQClient(zkAddr, groupId, secretKey string) *KiteQClient {
+func NewMockKiteQClient(registryAddr, groupId, secretKey string) *KiteQClient {
 	return &KiteQClient{k: &kite{}, mockModel: true}
 }
 
-func NewKiteQClientWithWarmup(zkAddr, groupId, secretKey string, warmingupSec int) *KiteQClient {
+func NewKiteQClientWithWarmup(parentCtx context.Context, registryAddr, groupId, secretKey string, warmingupSec int) *KiteQClient {
 	return &KiteQClient{
-		k: newKite(zkAddr, groupId, secretKey, warmingupSec, NewKiteQListener())}
+		k: newKite(parentCtx, registryAddr, groupId, secretKey, warmingupSec, NewKiteQListener())}
 }
 
 func (self *KiteQClient) SetPreEnv(isPre bool) {

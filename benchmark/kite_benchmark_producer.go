@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"flag"
 	"fmt"
@@ -38,7 +39,7 @@ func buildBytesMessage(commit bool) *protocol.BytesMessage {
 	entity.Header = &protocol.Header{
 		MessageId:    proto.String(client.MessageId()),
 		Topic:        proto.String("user-profile"),
-		MessageType:  proto.String("pay-succ"),
+		MessageType:  proto.String("profile-update"),
 		ExpiredTime:  proto.Int64(time.Now().Add(24 * time.Hour).Unix()),
 		DeliverLimit: proto.Int32(100),
 		GroupId:      proto.String("go-kite-test"),
@@ -57,7 +58,7 @@ func buildStringMessage(commit bool) *protocol.StringMessage {
 	entity.Header = &protocol.Header{
 		MessageId:    proto.String(client.MessageId()),
 		Topic:        proto.String("user-profile"),
-		MessageType:  proto.String("pay-succ"),
+		MessageType:  proto.String("profile-update"),
 		ExpiredTime:  proto.Int64(-1),
 		DeliverLimit: proto.Int32(100),
 		GroupId:      proto.String("go-kite-test"),
@@ -74,7 +75,7 @@ func main() {
 	k := flag.Int("k", 1, "-k=1  //kiteclient num ")
 	c := flag.Int("c", 1, "-c=100")
 	tx := flag.Bool("tx", false, "-tx=true send Tx Message")
-	zkhost := flag.String("registryUri", "etcd://http://localhost:2379", "-registryUri=etcd://http://localhost:2379")
+	registryUrl := flag.String("registryUri", "zk://localhost:2181", "-registryUri=file://./registry_demo.yaml")
 	flag.Parse()
 
 	runtime.GOMAXPROCS(8)
@@ -108,7 +109,7 @@ func main() {
 	clients := make([]*client.KiteQClient, 0, *k)
 	for j := 0; j < *k; j++ {
 
-		kiteClient := client.NewKiteQClient(*zkhost, "go-kite-test", "123456")
+		kiteClient := client.NewKiteQClient(context.TODO(), *registryUrl, "go-kite-test", "123456")
 		kiteClient.SetTopics([]string{"user-profile"})
 		kiteClient.SetListener(&listener.DefaultListener{})
 		kiteClient.Start()
@@ -121,7 +122,7 @@ func main() {
 				for !stop {
 					if *tx {
 						msg := buildBytesMessage(false)
-						err := kite.SendTxBytesMessage(msg, doTranscation)
+						err := kite.SendTxBytesMessage(msg, doTransaction)
 						if nil != err {
 							fmt.Printf("SEND TxMESSAGE |FAIL|%s", err)
 							atomic.AddInt32(&fc, 1)
@@ -132,7 +133,7 @@ func main() {
 						txmsg := buildBytesMessage(true)
 						err := kite.SendBytesMessage(txmsg)
 						if nil != err {
-							fmt.Printf("SEND MESSAGE |FAIL|%s", err)
+							fmt.Printf("SEND MESSAGE |FAIL|%s\n", err)
 							atomic.AddInt32(&fc, 1)
 						} else {
 							atomic.AddInt32(&count, 1)
@@ -174,6 +175,6 @@ func main() {
 	}
 }
 
-func doTranscation(message *protocol.QMessage) (bool, error) {
+func doTransaction(message *protocol.QMessage) (bool, error) {
 	return true, nil
 }
