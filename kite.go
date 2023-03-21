@@ -169,7 +169,7 @@ func (self *kite) Start() {
 	pipeline.RegisteHandler("remoting", remoting)
 	self.pipeline = pipeline
 	//注册kiteqserver的变更
-	self.registryCenter.RegisterWatcher(PATH_KITEQ_SERVER, self)
+	self.registryCenter.RegisterWatcher(self)
 	hostname, _ := os.Hostname()
 	//推送本机到
 	err := self.registryCenter.PublishTopics(self.topics, self.ga.GroupId, hostname)
@@ -469,6 +469,8 @@ func (self *kite) heartbeat() {
 		}
 	}
 }
+
+func (k *kite) OnBindChanged(topic, groupId string, newbinds []*registry.Binding) {}
 
 func (self *kite) Destroy() {
 	self.registryCenter.Close()
