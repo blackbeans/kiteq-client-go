@@ -33,9 +33,9 @@ func main() {
 	lis := &listener.DefaultListener{}
 	go lis.Monitor()
 
-	kite := client.NewKiteQClientWithWarmup(context.TODO(), *zkhost, "s-mts-test", "123456", *warmingUp)
+	kite := client.NewKiteQClientWithWarmup(context.TODO(), *zkhost, "s-mts-test1", "123456", *warmingUp)
 	kite.SetBindings([]*registry.Binding{
-		registry.Bind_Direct("s-mts-test", "profile", "pay-succ", 8000, false),
+		registry.Bind_Direct("s-mts-test1", "user-profile", "profile-update", 8000, false),
 	})
 	kite.SetListener(lis)
 	kite.Start()

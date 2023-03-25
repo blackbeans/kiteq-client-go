@@ -11,17 +11,17 @@ type KiteQClient struct {
 	k         *kite
 }
 
-func (self *KiteQClient) Start() {
-	self.k.Start()
+func (kq *KiteQClient) Start() {
+	kq.k.Start()
 }
 
 //设置listner
-func (self *KiteQClient) SetListener(listener IListener) {
-	self.k.SetListener(listener)
+func (kq *KiteQClient) SetListener(listener IListener) {
+	kq.k.SetListener(listener)
 }
 
-func (self *KiteQClient) GetListener() IListener {
-	return self.k.GetListener()
+func (kq *KiteQClient) GetListener() IListener {
+	return kq.k.GetListener()
 }
 
 func NewKiteQClient(parentCtx context.Context, zkAddr, groupId, secretKey string) *KiteQClient {
@@ -38,58 +38,58 @@ func NewKiteQClientWithWarmup(parentCtx context.Context, registryAddr, groupId, 
 		k: newKite(parentCtx, registryAddr, groupId, secretKey, warmingupSec, NewKiteQListener())}
 }
 
-func (self *KiteQClient) SetPreEnv(isPre bool) {
-	self.k.isPreEnv = isPre
+func (kq *KiteQClient) SetPreEnv(isPre bool) {
+	kq.k.isPreEnv = isPre
 }
 
-func (self *KiteQClient) SetTopics(topics []string) {
-	if !self.mockModel {
-		self.k.SetPublishTopics(topics)
+func (kq *KiteQClient) SetTopics(topics []string) {
+	if !kq.mockModel {
+		kq.k.SetPublishTopics(topics)
 	}
 }
 
-func (self *KiteQClient) SetBindings(bindings []*registry.Binding) {
-	if self.mockModel {
+func (kq *KiteQClient) SetBindings(bindings []*registry.Binding) {
+	if kq.mockModel {
 		return
 	}
-	self.k.SetBindings(bindings)
+	kq.k.SetBindings(bindings)
 }
 
-func (self *KiteQClient) SendTxStringMessage(msg *protocol.StringMessage, transcation DoTransaction) error {
-	if self.mockModel {
+func (kq *KiteQClient) SendTxStringMessage(msg *protocol.StringMessage, transcation DoTransaction) error {
+	if kq.mockModel {
 		return nil
 	}
 	message := protocol.NewQMessage(msg)
-	return self.k.SendTxMessage(message, transcation)
+	return kq.k.SendTxMessage(message, transcation)
 }
 
-func (self *KiteQClient) SendTxBytesMessage(msg *protocol.BytesMessage, transcation DoTransaction) error {
-	if self.mockModel {
+func (kq *KiteQClient) SendTxBytesMessage(msg *protocol.BytesMessage, transcation DoTransaction) error {
+	if kq.mockModel {
 		return nil
 	}
 	message := protocol.NewQMessage(msg)
-	return self.k.SendTxMessage(message, transcation)
+	return kq.k.SendTxMessage(message, transcation)
 }
 
-func (self *KiteQClient) SendStringMessage(msg *protocol.StringMessage) error {
-	if self.mockModel {
+func (kq *KiteQClient) SendStringMessage(msg *protocol.StringMessage) error {
+	if kq.mockModel {
 		return nil
 	}
 	message := protocol.NewQMessage(msg)
-	return self.k.SendMessage(message)
+	return kq.k.SendMessage(message)
 }
 
-func (self *KiteQClient) SendBytesMessage(msg *protocol.BytesMessage) error {
-	if self.mockModel {
+func (kq *KiteQClient) SendBytesMessage(msg *protocol.BytesMessage) error {
+	if kq.mockModel {
 		return nil
 	}
 	message := protocol.NewQMessage(msg)
-	return self.k.SendMessage(message)
+	return kq.k.SendMessage(message)
 }
 
-func (self *KiteQClient) Destroy() {
-	if self.mockModel {
+func (kq *KiteQClient) Destroy() {
+	if kq.mockModel {
 		return
 	}
-	self.k.Destroy()
+	kq.k.Destroy()
 }

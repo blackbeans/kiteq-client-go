@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/blackbeans/kiteq-common/registry"
@@ -15,11 +16,11 @@ func buildStringMessage(commit bool) *protocol.StringMessage {
 	entity.Header = &protocol.Header{
 		Snappy:       proto.Bool(true),
 		MessageId:    proto.String(MessageId()),
-		Topic:        proto.String("uneed-test"),
-		MessageType:  proto.String("pay-succ"),
+		Topic:        proto.String("user-profile"),
+		MessageType:  proto.String("profile-update"),
 		ExpiredTime:  proto.Int64(time.Now().Add(10 * time.Minute).Unix()),
 		DeliverLimit: proto.Int32(-1),
-		GroupId:      proto.String("ps-trade-a"),
+		GroupId:      proto.String("s-user-profile"),
 		Commit:       proto.Bool(commit),
 		Fly:          proto.Bool(false)}
 	entity.Body = proto.String("hello go-kite")
@@ -33,11 +34,11 @@ func buildBytesMessage(commit bool) *protocol.BytesMessage {
 	entity.Header = &protocol.Header{
 		Snappy:       proto.Bool(true),
 		MessageId:    proto.String(MessageId()),
-		Topic:        proto.String("uneed-test"),
-		MessageType:  proto.String("pay-succ"),
+		Topic:        proto.String("user-profile"),
+		MessageType:  proto.String("profile-update"),
 		ExpiredTime:  proto.Int64(time.Now().Add(10 * time.Minute).Unix()),
 		DeliverLimit: proto.Int32(-1),
-		GroupId:      proto.String("ps-trade-a"),
+		GroupId:      proto.String("s-user-profile"),
 		Commit:       proto.Bool(commit),
 		Fly:          proto.Bool(false)}
 	entity.Body = []byte("helloworld")
@@ -83,12 +84,12 @@ var manager *kite
 func init() {
 
 	// 创建客户端
-	manager = newKite("zk://10.0.1.92:2181", "ps-trade-a", "123456", 5, &MockTestListener{rc: rc, txc: txc})
-	manager.SetPublishTopics([]string{"uneed-test"})
+	manager = newKite(context.TODO(), "file://./registry_test.yaml", "s-user-profile", "123456", 5, &MockTestListener{rc: rc, txc: txc})
+	manager.SetPublishTopics([]string{"user-profile"})
 	// 设置接收类型
 	manager.SetBindings(
 		[]*registry.Binding{
-			registry.Bind_Direct("ps-trade-a", "uneed-test", "pay-succ", 1000, true),
+			registry.Bind_Direct("s-user-profile", "user-profile", "profile-update", 1000, true),
 		},
 	)
 
@@ -102,14 +103,14 @@ func TestStringMessage(t *testing.T) {
 	// 发送数据
 	err := manager.SendMessage(protocol.NewQMessage(m))
 	if nil != err {
-		t.Logf("SEND StringMESSAGE |FAIL|", err)
+		t.Logf("SEND StringMESSAGE |FAIL|%v", err)
 	} else {
 		t.Log("SEND StringMESSAGE |SUCCESS")
 	}
 
 	select {
 	case mid := <-rc:
-		t.Logf("RECIEVE StringMESSAGE |SUCCESS|%s", mid)
+		t.Logf("RECEIVE StringMESSAGE |SUCCESS|%s", mid)
 	case <-time.After(10 * time.Second):
 		t.Logf("WAIT StringMESSAGE |TIMEOUT|%v", err)
 		t.Fail()
@@ -134,7 +135,7 @@ func TestBytesMessage(t *testing.T) {
 		if mid != bm.GetHeader().GetMessageId() {
 			t.Fail()
 		}
-		t.Log("RECIEVE BytesMESSAGE |SUCCESS")
+		t.Log("RECEIVE BytesMESSAGE |SUCCESS")
 	case <-time.After(10 * time.Second):
 		t.Log("WAIT BytesMESSAGE |TIMEOUT|", err)
 		t.Fail()
@@ -160,11 +161,11 @@ func TestTxBytesMessage(t *testing.T) {
 
 	select {
 	case mid := <-rc:
-		t.Log("RECIEVE TxBytesMESSAGE |SUCCESS", mid)
+		t.Log("RECEIVE TxBytesMESSAGE |SUCCESS", mid)
 	case txid := <-txc:
 		if txid != bm.GetHeader().GetMessageId() {
 			t.Fail()
-			t.Log("SEND TxBytesMESSAGE |RECIEVE TXACK SUCC")
+			t.Log("SEND TxBytesMESSAGE |RECEIVE TXACK SUCC")
 		}
 
 	case <-time.After(10 * time.Second):

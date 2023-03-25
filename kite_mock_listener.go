@@ -10,12 +10,12 @@ type MockListener struct {
 }
 
 func (self *MockListener) OnMessage(msg *protocol.QMessage) bool {
-	log.Debugf("MockListener|OnMessage", msg.GetHeader(), msg.GetBody())
+	log.Debug("MockListener|OnMessage", msg.GetHeader(), msg.GetBody())
 	return true
 }
 
 func (self *MockListener) OnMessageCheck(tx *protocol.TxResponse) error {
-	log.Debug("MockListener|OnMessageCheck|%s", tx.MessageId)
+	log.Debugf("MockListener|OnMessageCheck|%s", tx.MessageId)
 	v, _ := tx.GetProperty("tradeno")
 	log.Debugf("MockListener|OnMessageCheck|PROP|%s", v)
 	tx.Commit()

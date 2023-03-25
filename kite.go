@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"sort"
 
-	"math/rand"
 	"net"
 	"os"
 	"sync"
@@ -20,10 +19,6 @@ import (
 	"github.com/blackbeans/kiteq-common/stat"
 	"github.com/blackbeans/turbo"
 	log "github.com/sirupsen/logrus"
-)
-
-const (
-	PATH_KITEQ_SERVER = "/kiteq/server"
 )
 
 var addressPool = &sync.Pool{}
@@ -61,6 +56,8 @@ type kite struct {
 	//心跳时间
 	heartbeatPeriod  time.Duration
 	heartbeatTimeout time.Duration
+
+	cliSelector Strategy
 }
 
 func newKite(parent context.Context, registryUri, groupId, secretKey string, warmingupSec int, listener IListener) *kite {
@@ -92,17 +89,19 @@ func newKite(parent context.Context, registryUri, groupId, secretKey string, war
 		listener:         listener,
 		heartbeatPeriod:  10 * time.Second,
 		heartbeatTimeout: 5 * time.Second,
+		cliSelector:      NewRandomSelector(),
 	}
+	registryCenter.RegisterWatcher(manager)
 	return manager
 }
 
-func (self *kite) remointflow() {
+func (k *kite) remointflow() {
 	go func() {
 		t := time.NewTicker(1 * time.Second)
 		for {
-			ns := self.config.FlowStat.Stat()
+			ns := k.config.FlowStat.Stat()
 			log.Infof("Remoting read:%d/%d\twrite:%d/%d\tdispatcher_go:%d/%d\tconnetions:%d", ns.ReadBytes, ns.ReadCount,
-				ns.WriteBytes, ns.WriteCount, ns.DisPoolSize, ns.DisPoolCap, self.clientManager.ConnNum())
+				ns.WriteBytes, ns.WriteCount, ns.DisPoolSize, ns.DisPoolCap, k.clientManager.ConnNum())
 			<-t.C
 		}
 	}()
@@ -110,43 +109,43 @@ func (self *kite) remointflow() {
 
 //废弃了设置listner
 //会自动创建默认的Listener,只需要在订阅期间Binding设置处理器即可
-func (self *kite) SetListener(listener IListener) {
-	self.listener = listener
+func (k *kite) SetListener(listener IListener) {
+	k.listener = listener
 }
 
-func (self *kite) GetListener() IListener {
-	return self.listener
+func (k *kite) GetListener() IListener {
+	return k.listener
 }
 
 //启动
-func (self *kite) Start() {
+func (k *kite) Start() {
 
 	//没有listenr的直接启动报错
-	if nil == self.listener {
+	if nil == k.listener {
 		panic("KiteClient Listener Not Set !")
 	}
 
 	//如果是预发环境，则加入预发环境的group后缀
-	if self.isPreEnv {
-		self.ga.GroupId = fmt.Sprintf("%s-pre", self.ga.GroupId)
+	if k.isPreEnv {
+		k.ga.GroupId = fmt.Sprintf("%s-pre", k.ga.GroupId)
 	}
 
 	//重连管理器
 	reconnManager := turbo.NewReconnectManager(true, 30*time.Second,
 		100, handshake)
-	self.clientManager = turbo.NewClientManager(reconnManager)
+	k.clientManager = turbo.NewClientManager(reconnManager)
 
 	//构造pipeline的结构
 	pipeline := turbo.NewDefaultPipeline()
-	ackHandler := NewAckHandler("ack", self.clientManager)
-	accept := NewAcceptHandler("accept", self.listener)
-	remoting := turbo.NewRemotingHandler("remoting", self.clientManager)
+	ackHandler := NewAckHandler("ack", k.clientManager)
+	accept := NewAcceptHandler("accept", k.listener)
+	remoting := turbo.NewRemotingHandler("remoting", k.clientManager)
 
 	//对于ack和acceptevent使用不同的线程池，优先级不同
-	msgPool := turbo.NewLimitPool(self.ctx, 50)
-	ackPool := turbo.NewLimitPool(self.ctx, 5)
-	storeAckPool := turbo.NewLimitPool(self.ctx, 5)
-	defaultPool := turbo.NewLimitPool(self.ctx, 5)
+	msgPool := turbo.NewLimitPool(k.ctx, 50)
+	ackPool := turbo.NewLimitPool(k.ctx, 5)
+	storeAckPool := turbo.NewLimitPool(k.ctx, 5)
+	defaultPool := turbo.NewLimitPool(k.ctx, 5)
 
 	//pools
 	pools := make(map[uint8]*turbo.GPool)
@@ -157,8 +156,8 @@ func (self *kite) Start() {
 	pools[protocol.CMD_BYTES_MESSAGE] = msgPool
 	pools[protocol.CMD_STRING_MESSAGE] = msgPool
 
-	self.pools = pools
-	self.defaultPool = defaultPool
+	k.pools = pools
+	k.defaultPool = defaultPool
 
 	unmarshal := NewUnmarshalHandler("unmarshal",
 		pools,
@@ -167,92 +166,92 @@ func (self *kite) Start() {
 	pipeline.RegisteHandler("ack", ackHandler)
 	pipeline.RegisteHandler("accept", accept)
 	pipeline.RegisteHandler("remoting", remoting)
-	self.pipeline = pipeline
+	k.pipeline = pipeline
 	//注册kiteqserver的变更
-	self.registryCenter.RegisterWatcher(self)
+	k.registryCenter.RegisterWatcher(k)
 	hostname, _ := os.Hostname()
 	//推送本机到
-	err := self.registryCenter.PublishTopics(self.topics, self.ga.GroupId, hostname)
+	err := k.registryCenter.PublishTopics(k.topics, k.ga.GroupId, hostname)
 	if nil != err {
-		log.Errorf("kite|PublishTopics|FAIL|%s|%s", err, self.topics)
+		log.Errorf("kite|PublishTopics|FAIL|%s|%s", err, k.topics)
 	} else {
-		log.Infof("kite|PublishTopics|SUCC|%s", self.topics)
+		log.Infof("kite|PublishTopics|SUCC|%s", k.topics)
 	}
 
 outter:
-	for _, b := range self.binds {
-		for _, t := range self.topics {
+	for _, b := range k.binds {
+		for _, t := range k.topics {
 			if t == b.Topic {
 				continue outter
 			}
 		}
-		self.topics = append(self.topics, b.Topic)
+		k.topics = append(k.topics, b.Topic)
 	}
 
-	for _, topic := range self.topics {
+	for _, topic := range k.topics {
 
-		hosts, err := self.registryCenter.GetQServerAndWatch(topic)
+		hosts, err := k.registryCenter.GetQServerAndWatch(topic)
 		if nil != err {
 			log.Errorf("kite|GetQServerAndWatch|FAIL|%s|%s", err, topic)
 		} else {
 			log.Infof("kite|GetQServerAndWatch|SUCC|%s|%s", topic, hosts)
 		}
-		self.onQServerChanged(topic, hosts)
+		k.OnQServerChanged(topic, hosts)
 	}
 
 	length := 0
-	self.topicToAddress.Range(func(key, value interface{}) bool {
+	k.topicToAddress.Range(func(key, value interface{}) bool {
 		length++
 		return true
 	})
 
 	if length <= 0 {
-		log.Errorf("kite|Start|NO VALID KITESERVER|%s", self.topics)
+		log.Errorf("kite|Start|NO VALID KITESERVER|%s", k.topics)
 	}
 
-	if !self.isPreEnv && len(self.binds) > 0 {
+	if !k.isPreEnv && len(k.binds) > 0 {
 		//订阅关系推送，并拉取QServer
-		err = self.registryCenter.PublishBindings(self.ga.GroupId, self.binds)
+		err = k.registryCenter.PublishBindings(k.ga.GroupId, k.binds)
 		if nil != err {
-			log.Errorf("kite|PublishBindings|FAIL|%s|%s", err, self.binds)
+			log.Errorf("kite|PublishBindings|FAIL|%s|%v", err, k.binds)
 		}
 	}
 
-	if self.isPreEnv {
-		rawBinds, _ := json.Marshal(self.binds)
-		log.Infof("kite|PublishBindings|Ignored|[preEnv:%v]|%s...", self.isPreEnv, string(rawBinds))
+	if k.isPreEnv {
+		rawBinds, _ := json.Marshal(k.binds)
+		log.Infof("kite|PublishBindings|Ignored|[preEnv:%v]|%s...", k.isPreEnv, string(rawBinds))
 	}
 
 	//开启流量统计
-	self.remointflow()
-	go self.heartbeat()
-	go self.poolMonitor()
+	k.remointflow()
+	go k.heartbeat()
+	go k.poolMonitor()
 
 }
 
 //poolMonitor
-func (self *kite) poolMonitor() {
+func (k *kite) poolMonitor() {
 	for {
 		select {
-		case <-self.ctx.Done():
+		case <-k.ctx.Done():
 			break
 		default:
 
 		}
 
-		keys := make([]int, 0, len(self.pools))
-		for cmdType := range self.pools {
+		keys := make([]int, 0, len(k.pools))
+		for cmdType := range k.pools {
 			keys = append(keys, int(cmdType))
 		}
 		sort.Ints(keys)
 		str := fmt.Sprintf("Cmd-Pool\tGoroutines:%d\t", runtime.NumGoroutine())
 		for _, cmdType := range keys {
-			p := self.pools[uint8(cmdType)]
+			p := k.pools[uint8(cmdType)]
 			used, capsize := p.Monitor()
 			str += fmt.Sprintf("%s:%d/%d\t", protocol.NameOfCmd(uint8(cmdType)), used, capsize)
 		}
 
-		used, capsize := self.defaultPool.Monitor()
+		used, capsize := k.defaultPool.Monitor()
 		str += fmt.Sprintf("default:%d/%d\t", used, capsize)
 		log.Infof(str)
 
@@ -261,13 +260,13 @@ func (self *kite) poolMonitor() {
 }
 
 //kiteQClient的处理器
-func (self *kite) fire(ctx *turbo.TContext) error {
+func (k *kite) fire(ctx *turbo.TContext) error {
 	p := ctx.Message
 	c := ctx.Client
 	event := turbo.NewPacketEvent(c, p)
-	err := self.pipeline.FireWork(event)
+	err := k.pipeline.FireWork(event)
 	if nil != err {
-		log.Errorf("kite|onPacketReceive|FAIL|%s|%t", err, p)
+		log.Errorf("kite|onPacketReceive|FAIL|%s|%v", err, p)
 		return err
 	}
 	return nil
@@ -320,27 +319,27 @@ func handshake(ga *turbo.GroupAuth, remoteClient *turbo.TClient) (bool, error) {
 	return false, errors.New("handshake fail! [" + remoteClient.RemoteAddr() + "]")
 }
 
-func (self *kite) SetPublishTopics(topics []string) {
-	self.topics = append(self.topics, topics...)
+func (k *kite) SetPublishTopics(topics []string) {
+	k.topics = append(k.topics, topics...)
 }
 
-func (self *kite) SetBindings(bindings []*registry.Binding) {
+func (k *kite) SetBindings(bindings []*registry.Binding) {
 	for _, b := range bindings {
-		b.GroupId = self.ga.GroupId
+		b.GroupId = k.ga.GroupId
 		if nil != b.Handler {
-			self.listener.RegisteHandler(b)
+			k.listener.RegisteHandler(b)
 		}
 	}
-	self.binds = bindings
+	k.binds = bindings
 }
 
 //发送事务消息
-func (self *kite) SendTxMessage(msg *protocol.QMessage, doTranscation DoTransaction) (err error) {
+func (k *kite) SendTxMessage(msg *protocol.QMessage, doTransaction DoTransaction) (err error) {
 
-	msg.GetHeader().GroupId = protocol.MarshalPbString(self.ga.GroupId)
+	msg.GetHeader().GroupId = protocol.MarshalPbString(k.ga.GroupId)
 
 	//路由选择策略
-	c, err := self.selectKiteClient(msg.GetHeader())
+	c, err := k.selectKiteClient(msg.GetHeader())
 	if nil != err {
 		return err
 	}
@@ -356,7 +355,7 @@ func (self *kite) SendTxMessage(msg *protocol.QMessage, doTranscation DoTransact
 	succ := false
 	txstatus := protocol.TX_UNKNOWN
 	//执行本地事务
-	succ, err = doTranscation(msg)
+	succ, err = doTransaction(msg)
 	if nil == err && succ {
 		txstatus = protocol.TX_COMMIT
 	} else {
@@ -371,11 +370,11 @@ func (self *kite) SendTxMessage(msg *protocol.QMessage, doTranscation DoTransact
 }
 
 //发送消息
-func (self *kite) SendMessage(msg *protocol.QMessage) error {
+func (k *kite) SendMessage(msg *protocol.QMessage) error {
 	//fix header groupId
-	msg.GetHeader().GroupId = protocol.MarshalPbString(self.ga.GroupId)
+	msg.GetHeader().GroupId = protocol.MarshalPbString(k.ga.GroupId)
 	//select client
-	c, err := self.selectKiteClient(msg.GetHeader())
+	c, err := k.selectKiteClient(msg.GetHeader())
 	if nil != err {
 		return err
 	}
@@ -383,52 +382,22 @@ func (self *kite) SendMessage(msg *protocol.QMessage) error {
 }
 
 //kiteclient路由选择策略
-func (self *kite) selectKiteClient(header *protocol.Header) (*turbo.TClient, error) {
-	v, ok := self.topicToAddress.Load(header.GetTopic())
-	if !ok || nil == v {
-		// 	log.WarnLog("kite","kite|selectKiteClient|FAIL|NO Remote Client|%s", header.GetTopic())
-		return nil, errors.New("NO KITE CLIENT ! [" + header.GetTopic() + "]")
-	}
+func (k *kite) selectKiteClient(header *protocol.Header) (*turbo.TClient, error) {
+	return k.cliSelector.Select(header, k.topicToAddress, k.addressToTClient, func(tc *turbo.TClient) bool {
+		//只接收
+		//remoteAddr := tc.RemoteAddr()
 
-	addresses, ok := v.([]string)
-	if !ok || len(addresses) <= 0 {
-		return nil, errors.New("NO KITE CLIENT ! [" + header.GetTopic() + "]")
-	}
-
-	aliveTClients := addressPool.Get()
-	for _, addr := range addresses {
-		if v, ok := self.addressToTClient.Load(addr); ok && nil != v {
-			if futureTask, ok := v.(*turbo.FutureTask); ok {
-				if v, err := futureTask.Get(); nil == err && nil != v {
-					if c, ok := v.(*turbo.TClient); ok && !c.IsClosed() {
-						aliveTClients = append(aliveTClients.([]*turbo.TClient), c)
-					}
-				}
-			}
-		}
-	}
-
-	//随机选取节点
-	randomTClients := aliveTClients.([]*turbo.TClient)
-	if len(randomTClients) > 0 {
-		source := rand.NewSource(time.Now().UnixNano())
-		rand := rand.New(source)
-		c := randomTClients[rand.Intn(len(randomTClients))]
-		addressPool.Put(randomTClients[:0])
-		return c, nil
-	} else {
-		addressPool.Put(randomTClients[:0])
-		return nil, errors.New("NO Alive KITE CLIENT ! [" + header.GetTopic() + "]")
-	}
+		return false
+	})
 }
 
-func (self *kite) heartbeat() {
+func (k *kite) heartbeat() {
 
 	for {
 		select {
-		case <-time.After(self.heartbeatPeriod):
+		case <-time.After(k.heartbeatPeriod):
 			//心跳检测
-			self.addressToTClient.Range(func(key, value interface{}) bool {
+			k.addressToTClient.Range(func(key, value interface{}) bool {
 				i := 0
 				future := value.(*turbo.FutureTask)
 				if v, err := future.Get(); nil == err && nil != v {
@@ -443,7 +412,7 @@ func (self *kite) heartbeat() {
 								id := time.Now().Unix()
 								p := protocol.MarshalHeartbeatPacket(id)
 								hp := turbo.NewPacket(protocol.CMD_HEARTBEAT, p)
-								err := c.Ping(hp, time.Duration(self.heartbeatTimeout))
+								err := c.Ping(hp, time.Duration(k.heartbeatTimeout))
 								//如果有错误则需要记录
 								if nil != err {
 									log.Warnf("AckHandler|KeepAlive|FAIL|%s|local:%s|remote:%s|%d", err, c.LocalAddr(), key, id)
@@ -458,13 +427,13 @@ func (self *kite) heartbeat() {
 					if i >= 3 {
 						//说明连接有问题需要重连
 						c.Shutdown()
-						self.clientManager.SubmitReconnect(c)
+						k.clientManager.SubmitReconnect(c)
 						log.Warnf("AckHandler|SubmitReconnect|%s", c.RemoteAddr())
 					}
 				}
 				return true
 			})
-		case <-self.ctx.Done():
+		case <-k.ctx.Done():
 			return
 		}
 	}
@@ -472,7 +441,7 @@ func (self *kite) heartbeat() {
 
 func (k *kite) OnBindChanged(topic, groupId string, newbinds []*registry.Binding) {}
 
-func (self *kite) Destroy() {
-	self.registryCenter.Close()
-	self.closed()
+func (k *kite) Destroy() {
+	k.registryCenter.Close()
+	k.closed()
 }

@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/blackbeans/go-uuid v0.0.0-20160524092444-daf034455212
-	github.com/blackbeans/kiteq-common v0.0.0-20230321131936-a24daaeccd50
+	github.com/blackbeans/kiteq-common v0.0.0-20230322114434-8c89a1163cdf
 	github.com/blackbeans/turbo v0.0.0-20230224051732-5304f943155c
 	github.com/golang/protobuf v1.4.2
 	github.com/golang/snappy v0.0.1
