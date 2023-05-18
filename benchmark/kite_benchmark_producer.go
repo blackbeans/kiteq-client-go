@@ -9,7 +9,6 @@ import (
 	"github.com/blackbeans/kiteq-client-go/benchmark/listener"
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
@@ -82,7 +81,7 @@ func main() {
 
 	go func() {
 
-		log.Info(http.ListenAndServe(":28000", nil))
+		http.ListenAndServe(":28000", nil)
 	}()
 
 	count := int32(0)

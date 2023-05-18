@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/blackbeans/kiteq-client-go/benchmark/listener"
-	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -25,8 +24,7 @@ func main() {
 	runtime.GOMAXPROCS(8)
 
 	go func() {
-
-		log.Info(http.ListenAndServe(":38000", nil))
+		http.ListenAndServe(":38000", nil)
 	}()
 
 	lis := &listener.DefaultListener{}
