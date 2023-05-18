@@ -8,6 +8,7 @@ import (
 	"github.com/blackbeans/kiteq-client-go"
 	"github.com/blackbeans/kiteq-client-go/benchmark/listener"
 	"github.com/blackbeans/kiteq-common/protocol"
+	"github.com/blackbeans/logx"
 	"github.com/golang/protobuf/proto"
 	"io"
 	"net/http"
@@ -76,7 +77,7 @@ func main() {
 	tx := flag.Bool("tx", false, "-tx=true send Tx Message")
 	registryUrl := flag.String("registryUri", "zk://localhost:2181", "-registryUri=file://./registry_demo.yaml")
 	flag.Parse()
-
+	logx.GetLogger("stdout")
 	runtime.GOMAXPROCS(8)
 
 	go func() {

@@ -6,6 +6,8 @@ github.com/blackbeans/kiteq-common v0.0.0-20230518154807-df4546f9f853 h1:gRh3kIU
 github.com/blackbeans/kiteq-common v0.0.0-20230518154807-df4546f9f853/go.mod h1:kGKtVrL28CxZIhhBNY3SC6m5PJEC6UwKZ2RNL2pO20Q=
 github.com/blackbeans/logx v0.0.0-20230518151533-7059fbb3d603 h1:+58vNTfQJpqEC+zqMIlpnxJewty3cKum2RxAbIZNkg0=
 github.com/blackbeans/logx v0.0.0-20230518151533-7059fbb3d603/go.mod h1:etQRdBUB7nfCUB8XWuZeOTWvDl8Q838qAi/LBARGQwg=
+github.com/blackbeans/logx v0.0.0-20230518160846-1d176e8cf1d5 h1:cVjd4XbTk9RvoxwbLE9vbsA5ZkK5ankZN4BF0HiCwGU=
+github.com/blackbeans/logx v0.0.0-20230518160846-1d176e8cf1d5/go.mod h1:etQRdBUB7nfCUB8XWuZeOTWvDl8Q838qAi/LBARGQwg=
 github.com/blackbeans/turbo v0.0.0-20230518151841-580b848285bf h1:giPd3l5+BFVxirrA+I99y90CTH2I8R8Rgbdd1N8RTvM=
 github.com/blackbeans/turbo v0.0.0-20230518151841-580b848285bf/go.mod h1:1ivSQWNDpz968Cp3jwTOApRZcTQRSRcjIbTJQXdkP+w=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
