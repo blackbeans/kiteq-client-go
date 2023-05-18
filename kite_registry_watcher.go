@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/blackbeans/turbo"
-	log "github.com/sirupsen/logrus"
 )
 
 //当触发QServer地址发生变更

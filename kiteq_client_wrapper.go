@@ -3,7 +3,6 @@ package client
 import (
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
 	"time"
 )
 

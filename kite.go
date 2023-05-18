@@ -18,7 +18,6 @@ import (
 
 	"github.com/blackbeans/kiteq-common/stat"
 	"github.com/blackbeans/turbo"
-	log "github.com/sirupsen/logrus"
 )
 
 var addressPool = &sync.Pool{}

@@ -3,7 +3,6 @@ package client
 import (
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/blackbeans/kiteq-common/registry"
-	log "github.com/sirupsen/logrus"
 )
 
 type MockListener struct {

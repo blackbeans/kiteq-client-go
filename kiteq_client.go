@@ -4,7 +4,10 @@ import (
 	"context"
 	"github.com/blackbeans/kiteq-common/protocol"
 	"github.com/blackbeans/kiteq-common/registry"
+	"github.com/blackbeans/logx"
 )
+
+var log = logx.GetLogger("kiteq_client")
 
 type KiteQClient struct {
 	mockModel bool //mock的模式

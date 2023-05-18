@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"runtime/debug"
 
 	"github.com/blackbeans/kiteq-common/protocol"
